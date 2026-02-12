@@ -13,6 +13,10 @@ Custom dashboard builder with AI-assisted generation. Convex backend, Next.js fr
 
 - Read `docs/convex.md` before working on backend (`convex/` directory)
 - Read `docs/nextjs.md` before working on frontend (`app/` directory)
+- Read `docs/credentials.md` before working on auth, tokens, or API integrations
+- Read `docs/meta.md` before working on Meta Ads or WhatsApp integration
+- Read `docs/google.md` before working on Google Ads integration
+- Read `docs/tiktok.md` before working on TikTok Ads integration (P2)
 
 ## Quick Reference
 
