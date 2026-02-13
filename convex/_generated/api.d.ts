@@ -8,7 +8,6 @@
  * @module
  */
 
-import type * as lib_ga4Client from "../lib/ga4Client.js";
 import type * as metaAuth from "../metaAuth.js";
 import type * as metaOAuth from "../metaOAuth.js";
 
@@ -19,7 +18,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  "lib/ga4Client": typeof lib_ga4Client;
   metaAuth: typeof metaAuth;
   metaOAuth: typeof metaOAuth;
 }>;

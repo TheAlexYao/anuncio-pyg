@@ -136,3 +136,32 @@ export const fetchAdAccounts = action({
     }));
   },
 });
+
+// Save selected ad accounts
+export const saveSelectedAccounts = action({
+  args: {
+    userId: v.id("users"),
+    accounts: v.array(
+      v.object({
+        platformAccountId: v.string(),
+        accountName: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    // Get user's auth to copy tokens to connected accounts
+    const auth = await ctx.runQuery(internal.metaAuth.getUserAuth, { userId: args.userId });
+    if (!auth) throw new Error("No Meta auth found for user");
+
+    await ctx.runMutation(internal.metaAuth.saveConnectedAccounts, {
+      userId: args.userId,
+      accounts: args.accounts,
+      encryptedAccessToken: auth.encryptedAccessToken,
+      encryptedRefreshToken: auth.encryptedRefreshToken,
+      tokenExpiresAt: auth.tokenExpiresAt,
+      scopes: auth.scopes,
+    });
+
+    return { success: true, count: args.accounts.length };
+  },
+});
