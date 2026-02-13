@@ -1,0 +1,9 @@
+
+## 2026-02-13 18:24 - US-003: Create crypto encrypt/decrypt helpers
+- Created convex/lib/crypto.ts with encrypt/decrypt using aes-256-gcm per docs/credentials.md pattern
+- Format: iv_hex:tag_hex:ciphertext_hex, AES-256-GCM with random 16-byte IV
+- Created convex/lib/crypto.test.ts with 9 tests: round-trip, empty string, unicode, long text, format validation, random IV uniqueness, wrong key throws, tampered ciphertext throws, invalid format throws
+- All 9 tests pass, typecheck clean (only pre-existing errors in test files)
+- Files: convex/lib/crypto.ts, convex/lib/crypto.test.ts
+- **Learnings:** Empty string encrypts to empty hex — use `=== undefined` not `!val` for format validation since empty string is falsy
+---
