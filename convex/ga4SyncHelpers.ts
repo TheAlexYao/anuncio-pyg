@@ -1,18 +1,19 @@
 import { internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-// Get all GA4 accounts (properties)
+// Get all GA4 accounts
+// Note: GA4 properties are stored as platform="google" - we distinguish them
+// from Google Ads by checking if the account was created via GA4 flow
+// For now, we sync ALL Google accounts (both Ads and GA4 use same OAuth)
 export const getAllGA4Accounts = internalQuery({
   args: {},
   handler: async (ctx) => {
-    // GA4 properties are stored with platformAccountId starting with "ga4_"
-    const googleAccounts = await ctx.db
+    // Return all Google accounts - GA4 sync will work for those with analytics scope
+    // Filter by scopes including analytics.readonly would be more precise
+    return await ctx.db
       .query("connected_accounts")
       .filter((q) => q.eq(q.field("platform"), "google"))
       .collect();
-
-    // Filter to GA4 properties (not Google Ads accounts)
-    return googleAccounts.filter((a) => a.platformAccountId.startsWith("ga4_"));
   },
 });
 
@@ -36,7 +37,6 @@ export const storeGA4Metrics = internalMutation({
     const now = Date.now();
 
     for (const m of args.metrics) {
-      // Check for existing record
       const existing = await ctx.db
         .query("ga4_daily")
         .withIndex("by_account_date", (q) =>

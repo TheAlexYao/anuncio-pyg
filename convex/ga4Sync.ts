@@ -23,6 +23,25 @@ interface GA4ReportResponse {
   }>;
 }
 
+// Helper to get fresh access token for a user
+async function getFreshAccessToken(
+  ctx: any,
+  userId: Id<"users">,
+  encryptionKey: string
+): Promise<string> {
+  let auth = await ctx.runQuery(internal.googleAuth.getUserAuth, { userId });
+  if (!auth) throw new Error("No Google auth found");
+
+  // Refresh if expiring within 5 minutes
+  if (auth.tokenExpiresAt < Date.now() + 300000) {
+    await ctx.runAction(internal.googleTokenRefresh.refreshAccessToken, { userId });
+    auth = await ctx.runQuery(internal.googleAuth.getUserAuth, { userId });
+    if (!auth) throw new Error("Auth refresh failed");
+  }
+
+  return decrypt(auth.encryptedAccessToken, encryptionKey);
+}
+
 // Fetch GA4 properties for account selection
 export const fetchGA4Properties = action({
   args: { userId: v.id("users") },
@@ -30,14 +49,7 @@ export const fetchGA4Properties = action({
     const encryptionKey = process.env.ENCRYPTION_KEY;
     if (!encryptionKey) throw new Error("ENCRYPTION_KEY not set");
 
-    const auth = await ctx.runQuery(internal.googleAuth.getUserAuth, { userId: args.userId });
-    if (!auth) throw new Error("No Google auth found");
-
-    if (auth.tokenExpiresAt < Date.now() + 60000) {
-      await ctx.runAction(internal.googleTokenRefresh.refreshAccessToken, { userId: args.userId });
-    }
-
-    const accessToken = decrypt(auth.encryptedAccessToken, encryptionKey);
+    const accessToken = await getFreshAccessToken(ctx, args.userId, encryptionKey);
 
     const accountsRes = await fetch(
       "https://analyticsadmin.googleapis.com/v1beta/accountSummaries",
@@ -77,7 +89,8 @@ export const syncPropertyMetrics = internalAction({
     const account = await ctx.runQuery(internal.metaSyncHelpers.getAccount, { accountId: args.accountId });
     if (!account) throw new Error("Account not found");
 
-    const accessToken = decrypt(account.encryptedAccessToken, encryptionKey);
+    // Get fresh token for this user
+    const accessToken = await getFreshAccessToken(ctx, account.userId, encryptionKey);
     const propertyId = account.platformAccountId;
 
     const endDate = new Date();
@@ -109,6 +122,10 @@ export const syncPropertyMetrics = internalAction({
 
     if (!res.ok) {
       const err = await res.text();
+      // If 403/404, this might be a Google Ads account, not GA4 - skip silently
+      if (res.status === 403 || res.status === 404) {
+        return { success: true, metricsCount: 0, skipped: true };
+      }
       throw new Error(`Failed to fetch GA4 metrics: ${err}`);
     }
 
