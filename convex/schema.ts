@@ -8,7 +8,7 @@ export default defineSchema({
     email: v.string(),
   }).index("by_email", ["email"]),
 
-  // OAuth tokens per platform (for the logged-in user's tokens)
+  // OAuth tokens per platform
   user_auth: defineTable({
     userId: v.id("users"),
     platform: v.union(
@@ -26,7 +26,7 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_platform", ["userId", "platform"]),
 
-  // Connected ad accounts (selected by user after OAuth)
+  // Connected ad accounts
   connected_accounts: defineTable({
     userId: v.id("users"),
     platform: v.union(
@@ -52,10 +52,10 @@ export default defineSchema({
     accountId: v.id("connected_accounts"),
     platformCampaignId: v.string(),
     campaignName: v.string(),
-    date: v.string(), // YYYY-MM-DD
+    date: v.string(),
     impressions: v.number(),
     clicks: v.number(),
-    spend: v.number(), // in cents
+    spend: v.number(),
     currency: v.string(),
     leads: v.optional(v.number()),
     conversions: v.optional(v.number()),
@@ -63,4 +63,21 @@ export default defineSchema({
   })
     .index("by_account_date", ["accountId", "date"])
     .index("by_campaign_date", ["platformCampaignId", "date"]),
+
+  // Leads from Meta Lead Ads
+  leads: defineTable({
+    accountId: v.id("connected_accounts"),
+    platformLeadId: v.string(),
+    formId: v.string(),
+    formName: v.optional(v.string()),
+    campaignId: v.optional(v.string()),
+    adId: v.optional(v.string()),
+    fields: v.any(),
+    createdTime: v.string(),
+    syncedAt: v.number(),
+    notified: v.optional(v.boolean()),
+  })
+    .index("by_platform_lead", ["platformLeadId"])
+    .index("by_account", ["accountId"])
+    .index("by_form", ["formId"]),
 });

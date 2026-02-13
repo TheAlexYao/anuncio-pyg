@@ -127,3 +127,38 @@ export const getAuthStatus = query({
     }));
   },
 });
+
+// Get leads for an account
+export const getLeads = query({
+  args: {
+    accountId: v.id("connected_accounts"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    let query = ctx.db
+      .query("leads")
+      .withIndex("by_account", (q) => q.eq("accountId", args.accountId))
+      .order("desc");
+
+    const leads = await query.take(args.limit || 100);
+    return leads;
+  },
+});
+
+// Get recent leads count (for dashboard)
+export const getRecentLeadsCount = query({
+  args: {
+    accountId: v.id("connected_accounts"),
+    sinceDays: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const since = Date.now() - (args.sinceDays || 7) * 24 * 60 * 60 * 1000;
+    
+    const leads = await ctx.db
+      .query("leads")
+      .withIndex("by_account", (q) => q.eq("accountId", args.accountId))
+      .collect();
+
+    return leads.filter((l) => l.syncedAt >= since).length;
+  },
+});

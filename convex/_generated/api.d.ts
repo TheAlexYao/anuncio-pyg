@@ -8,8 +8,11 @@
  * @module
  */
 
-import type * as alertRules from "../alertRules.js";
 import type * as crons from "../crons.js";
+import type * as metaAuth from "../metaAuth.js";
+import type * as metaLeadHelpers from "../metaLeadHelpers.js";
+import type * as metaLeadSync from "../metaLeadSync.js";
+import type * as metaOAuth from "../metaOAuth.js";
 import type * as metaSync from "../metaSync.js";
 import type * as metaSyncHelpers from "../metaSyncHelpers.js";
 import type * as queries from "../queries.js";
@@ -21,8 +24,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  alertRules: typeof alertRules;
   crons: typeof crons;
+  metaAuth: typeof metaAuth;
+  metaLeadHelpers: typeof metaLeadHelpers;
+  metaLeadSync: typeof metaLeadSync;
+  metaOAuth: typeof metaOAuth;
   metaSync: typeof metaSync;
   metaSyncHelpers: typeof metaSyncHelpers;
   queries: typeof queries;

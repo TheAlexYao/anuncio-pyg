@@ -10,4 +10,11 @@ crons.interval(
   internal.metaSync.syncAllMetaAccounts
 );
 
+// Sync Meta leads every 15 minutes (leads expire after 90 days)
+crons.interval(
+  "sync-meta-leads",
+  { minutes: 15 },
+  internal.metaLeadSync.syncAllMetaLeads
+);
+
 export default crons;
