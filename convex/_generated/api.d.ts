@@ -9,6 +9,7 @@
  */
 
 import type * as alertRules from "../alertRules.js";
+import type * as crons from "../crons.js";
 import type * as metaSync from "../metaSync.js";
 import type * as metaSyncHelpers from "../metaSyncHelpers.js";
 import type * as queries from "../queries.js";
@@ -21,6 +22,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   alertRules: typeof alertRules;
+  crons: typeof crons;
   metaSync: typeof metaSync;
   metaSyncHelpers: typeof metaSyncHelpers;
   queries: typeof queries;
