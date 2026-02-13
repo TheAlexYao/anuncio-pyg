@@ -12,3 +12,14 @@
 - Files: convex/auth/tokens.ts, convex/auth/tokens.test.ts, convex/_generated/api.d.ts, convex/_generated/dataModel.d.ts
 - **Learnings:** Convex codegen must be run after adding new modules; ApiFromModules<{}> means codegen is stale
 ---
+
+## 2026-02-13 04:02 - US-005: Build Google OAuth authorization URL generator action
+- Created convex/google/oauth.ts with generateAuthUrl action
+- Builds Google OAuth URL with client_id, redirect_uri, response_type=code, access_type=offline, prompt=consent, state
+- Scopes: adwords + analytics.readonly
+- Reads GOOGLE_CLIENT_ID and GOOGLE_REDIRECT_URI from process.env
+- Created convex/google/oauth.test.ts with 12 tests: URL structure, all params, scopes, state preservation, special chars, exports
+- All 12 tests pass
+- Files: convex/google/oauth.ts, convex/google/oauth.test.ts
+- **Learnings:** Google OAuth module follows same "use node" pattern as meta.ts
+---
