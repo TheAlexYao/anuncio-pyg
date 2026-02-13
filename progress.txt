@@ -34,3 +34,16 @@
 - Files: convex/http.ts, convex/http.test.ts, convex/google/exchangeCode.ts, convex/google/exchangeCode.test.ts
 - **Learnings:** Convex httpRouter uses `httpAction` from _generated/server; httpAction handler receives (ctx, request) where request is a standard Request object
 ---
+
+## 2026-02-13 20:08 - US-006: Create Meta lead sync action
+- Created convex/metaLeadSync.ts with syncLeads internalAction
+- syncLeads: queries all meta connectedAccounts, decrypts tokens, calls getPages → getLeadForms → getLeadsByForm (90-day filter), upserts each lead
+- Helper mutations: createSyncLog, completeSyncLog, upsertLead (dedup by platformLeadId index)
+- Helper query: getMetaConnectedAccounts (filters platform='meta')
+- Error isolation: try/catch per account, one failing account doesn't stop others
+- Sync log created at start, completed with success/error status
+- Created convex/metaLeadSync.test.ts with 11 tests: 5 export checks, 2 cutoff calculation, 2 date parsing, 1 error isolation, 1 dedup pattern
+- All 11 tests pass, no new typecheck errors
+- Files: convex/metaLeadSync.ts, convex/metaLeadSync.test.ts
+- **Learnings:** Convex generated types may not include new tables until `npx convex dev` runs — use `as any` casts for index queries on newly-added tables
+---
