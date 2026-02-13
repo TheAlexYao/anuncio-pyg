@@ -1,0 +1,11 @@
+
+## 2026-02-13 20:18 - US-002: Create GA4 Data API client helper
+- Created convex/lib/ga4Client.ts with buildRunReportRequest, parseRunReportResponse, fetchGA4Sessions, buildRunReportUrl
+- buildRunReportRequest builds GA4 v1beta runReport body with 4 dimensions and 6 metrics for a single date
+- parseRunReportResponse maps GA4 response rows to typed objects, handles null/undefined/empty gracefully
+- fetchGA4Sessions combines URL building, request building, fetch call, and response parsing
+- Created convex/lib/ga4Client.test.ts with 14 tests: request building (4), URL building (1), response parsing (8), export check (1)
+- All 14 tests pass, no new typecheck errors
+- Files: convex/lib/ga4Client.ts, convex/lib/ga4Client.test.ts
+- **Learnings:** GA4 Data API returns dimension/metric values as string arrays in order matching request; pure helper extraction pattern continues to work well
+---
