@@ -23,3 +23,15 @@
 - Files: convex/google/oauth.ts, convex/google/oauth.test.ts
 - **Learnings:** Google OAuth module follows same "use node" pattern as meta.ts
 ---
+
+## 2026-02-13 19:56 - US-007: Build token refresh action
+- Added refreshAccessToken internalAction to convex/google/oauth.ts
+- Reads user_auth by ID, decrypts refresh token, POSTs to Google token endpoint
+- Encrypts new access_token and calls updateTokens mutation
+- Added getValidAccessToken internalAction with 60s expiry buffer
+- Added getTokensById internalQuery to convex/auth/tokens.ts
+- Fixed convex/lib/crypto.ts missing "use node" directive (was already broken before)
+- Created convex/google/oauth.refresh.test.ts with 18 tests
+- Pure helper pattern: isTokenExpired, buildRefreshBody, parseTokenResponse exported for testing
+- **Learnings:** Convex lib files using Node APIs need "use node" directive even if only imported by action files; pure helper extraction pattern continues to work well for testability
+---
