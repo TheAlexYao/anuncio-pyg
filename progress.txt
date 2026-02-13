@@ -1,0 +1,14 @@
+
+## 2026-02-12 22:50 - US-003: Add internal mutations for storing and updating OAuth tokens
+- Created convex/auth/tokens.ts with storeTokens (internalMutation), updateTokens (internalMutation), getTokens (internalQuery)
+- storeTokens: upserts user_auth by userId+platform, accepts all required fields
+- updateTokens: patches encryptedAccessToken and tokenExpiresAt on existing record
+- getTokens: fetches user_auth by userId and platform using by_user_platform index
+- All functions use v validators
+- Created convex/auth/tokens.test.ts with 11 tests: export checks, distinctness, args validation
+- All 11 tests pass
+- Fixed: ran convex codegen to regenerate api.d.ts and dataModel.d.ts with proper module references
+- Typecheck passes (only 2 pre-existing errors in tests/schema.test.ts)
+- Files: convex/auth/tokens.ts, convex/auth/tokens.test.ts, convex/_generated/api.d.ts, convex/_generated/dataModel.d.ts
+- **Learnings:** Convex codegen must be run after adding new modules; ApiFromModules<{}> means codegen is stale
+---
