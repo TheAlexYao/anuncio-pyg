@@ -63,6 +63,15 @@ export const updateTokens = internalMutation({
   },
 });
 
+export const getTokensById = internalQuery({
+  args: {
+    id: v.id("user_auth"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
 export const getTokens = internalQuery({
   args: {
     userId: v.id("users"),

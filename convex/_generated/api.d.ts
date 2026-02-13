@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as auth_connectedAccounts from "../auth/connectedAccounts.js";
 import type * as auth_tokens from "../auth/tokens.js";
+import type * as google_oauth from "../google/oauth.js";
 import type * as lib_crypto from "../lib/crypto.js";
 
 import type {
@@ -18,7 +20,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "auth/connectedAccounts": typeof auth_connectedAccounts;
   "auth/tokens": typeof auth_tokens;
+  "google/oauth": typeof google_oauth;
   "lib/crypto": typeof lib_crypto;
 }>;
 
