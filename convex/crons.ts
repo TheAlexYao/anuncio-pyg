@@ -10,11 +10,18 @@ crons.interval(
   internal.metaSync.syncAllMetaAccounts
 );
 
-// Sync Meta leads every 15 minutes (leads expire after 90 days)
+// Sync Meta leads every 15 minutes
 crons.interval(
   "sync-meta-leads",
   { minutes: 15 },
   internal.metaLeadSync.syncAllMetaLeads
+);
+
+// Sync Google Ads campaigns every 4 hours
+crons.interval(
+  "sync-google-ads-campaigns",
+  { hours: 4 },
+  internal.googleAdsSync.syncAllGoogleAdsAccounts
 );
 
 export default crons;

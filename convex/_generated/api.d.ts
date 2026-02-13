@@ -9,6 +9,10 @@
  */
 
 import type * as crons from "../crons.js";
+import type * as googleAdsSync from "../googleAdsSync.js";
+import type * as googleAdsSyncHelpers from "../googleAdsSyncHelpers.js";
+import type * as googleAuth from "../googleAuth.js";
+import type * as googleOAuth from "../googleOAuth.js";
 import type * as metaAuth from "../metaAuth.js";
 import type * as metaLeadHelpers from "../metaLeadHelpers.js";
 import type * as metaLeadSync from "../metaLeadSync.js";
@@ -25,6 +29,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   crons: typeof crons;
+  googleAdsSync: typeof googleAdsSync;
+  googleAdsSyncHelpers: typeof googleAdsSyncHelpers;
+  googleAuth: typeof googleAuth;
+  googleOAuth: typeof googleOAuth;
   metaAuth: typeof metaAuth;
   metaLeadHelpers: typeof metaLeadHelpers;
   metaLeadSync: typeof metaLeadSync;
