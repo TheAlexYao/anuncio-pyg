@@ -9,6 +9,8 @@
  */
 
 import type * as crons from "../crons.js";
+import type * as ga4Sync from "../ga4Sync.js";
+import type * as ga4SyncHelpers from "../ga4SyncHelpers.js";
 import type * as googleAdsSync from "../googleAdsSync.js";
 import type * as googleAdsSyncHelpers from "../googleAdsSyncHelpers.js";
 import type * as googleAuth from "../googleAuth.js";
@@ -20,6 +22,8 @@ import type * as metaOAuth from "../metaOAuth.js";
 import type * as metaSync from "../metaSync.js";
 import type * as metaSyncHelpers from "../metaSyncHelpers.js";
 import type * as queries from "../queries.js";
+import type * as tiktokLeads from "../tiktokLeads.js";
+import type * as tiktokLeadsMutations from "../tiktokLeadsMutations.js";
 
 import type {
   ApiFromModules,
@@ -29,6 +33,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   crons: typeof crons;
+  ga4Sync: typeof ga4Sync;
+  ga4SyncHelpers: typeof ga4SyncHelpers;
   googleAdsSync: typeof googleAdsSync;
   googleAdsSyncHelpers: typeof googleAdsSyncHelpers;
   googleAuth: typeof googleAuth;
@@ -40,6 +46,8 @@ declare const fullApi: ApiFromModules<{
   metaSync: typeof metaSync;
   metaSyncHelpers: typeof metaSyncHelpers;
   queries: typeof queries;
+  tiktokLeads: typeof tiktokLeads;
+  tiktokLeadsMutations: typeof tiktokLeadsMutations;
 }>;
 
 /**

@@ -1,5 +1,12 @@
-import { query } from "./_generated/server";
+import { query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+
+export const getConnectedAccount = internalQuery({
+  args: { accountId: v.id("connected_accounts") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.accountId);
+  },
+});
 
 // List connected accounts for a user (without sensitive token data)
 export const listConnectedAccounts = query({
@@ -160,5 +167,93 @@ export const getRecentLeadsCount = query({
       .collect();
 
     return leads.filter((l) => l.syncedAt >= since).length;
+  },
+});
+
+// Get GA4 metrics for a property
+export const getGA4Metrics = query({
+  args: {
+    accountId: v.id("connected_accounts"),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const results = await ctx.db
+      .query("ga4_daily")
+      .withIndex("by_account_date", (q) => q.eq("accountId", args.accountId))
+      .collect();
+
+    let filtered = results;
+    if (args.startDate || args.endDate) {
+      filtered = results.filter((r) => {
+        if (args.startDate && r.date < args.startDate) return false;
+        if (args.endDate && r.date > args.endDate) return false;
+        return true;
+      });
+    }
+
+    return filtered;
+  },
+});
+
+// Get GA4 summary (totals for date range)
+export const getGA4Summary = query({
+  args: {
+    accountId: v.id("connected_accounts"),
+    startDate: v.string(),
+    endDate: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const metrics = await ctx.db
+      .query("ga4_daily")
+      .withIndex("by_account_date", (q) => q.eq("accountId", args.accountId))
+      .collect();
+
+    const filtered = metrics.filter(
+      (r) => r.date >= args.startDate && r.date <= args.endDate
+    );
+
+    if (filtered.length === 0) {
+      return {
+        totalSessions: 0,
+        totalUsers: 0,
+        totalPageViews: 0,
+        totalConversions: 0,
+        avgBounceRate: 0,
+        avgSessionDuration: 0,
+        days: 0,
+      };
+    }
+
+    const totals = filtered.reduce(
+      (acc, m) => ({
+        totalSessions: acc.totalSessions + m.sessions,
+        totalUsers: acc.totalUsers + m.activeUsers,
+        totalPageViews: acc.totalPageViews + m.pageViews,
+        totalConversions: acc.totalConversions + m.conversions,
+        bounceRateSum: acc.bounceRateSum + m.bounceRate,
+        durationSum: acc.durationSum + m.avgSessionDuration,
+        days: acc.days + 1,
+      }),
+      {
+        totalSessions: 0,
+        totalUsers: 0,
+        totalPageViews: 0,
+        totalConversions: 0,
+        bounceRateSum: 0,
+        durationSum: 0,
+        days: 0,
+      }
+    );
+
+    return {
+      totalSessions: totals.totalSessions,
+      totalUsers: totals.totalUsers,
+      totalPageViews: totals.totalPageViews,
+      totalConversions: totals.totalConversions,
+      avgBounceRate: totals.days > 0 ? totals.bounceRateSum / totals.days : 0,
+      avgSessionDuration: totals.days > 0 ? totals.durationSum / totals.days : 0,
+      days: totals.days,
+    };
   },
 });

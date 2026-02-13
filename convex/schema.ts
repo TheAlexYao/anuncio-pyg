@@ -47,7 +47,7 @@ export default defineSchema({
     .index("by_user_platform", ["userId", "platform"])
     .index("by_platform_account", ["platform", "platformAccountId"]),
 
-  // Daily campaign metrics
+  // Daily campaign metrics (Meta Ads, Google Ads, TikTok Ads)
   campaigns_daily: defineTable({
     accountId: v.id("connected_accounts"),
     platformCampaignId: v.string(),
@@ -63,6 +63,33 @@ export default defineSchema({
   })
     .index("by_account_date", ["accountId", "date"])
     .index("by_campaign_date", ["platformCampaignId", "date"]),
+
+  // Daily GA4 metrics (website analytics)
+  ga4_daily: defineTable({
+    accountId: v.id("connected_accounts"),
+    date: v.string(),
+    sessions: v.number(),
+    activeUsers: v.number(),
+    pageViews: v.number(),
+    conversions: v.number(),
+    bounceRate: v.number(),
+    avgSessionDuration: v.number(),
+    fetchedAt: v.number(),
+  }).index("by_account_date", ["accountId", "date"]),
+
+  // Lead forms (TikTok Lead Gen forms)
+  lead_forms: defineTable({
+    accountId: v.id("connected_accounts"),
+    advertiserId: v.string(),
+    formId: v.string(),
+    formName: v.string(),
+    campaignId: v.optional(v.string()),
+    adgroupId: v.optional(v.string()),
+    adId: v.optional(v.string()),
+    syncedAt: v.number(),
+  })
+    .index("by_account", ["accountId"])
+    .index("by_form", ["formId"]),
 
   // Leads from Meta Lead Ads
   leads: defineTable({
