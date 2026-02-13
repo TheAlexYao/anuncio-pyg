@@ -32,6 +32,40 @@ export const insertLead = internalMutation({
   },
 });
 
+export const upsertLead = internalMutation({
+  args: {
+    accountId: v.id("connected_accounts"),
+    platformLeadId: v.string(),
+    formId: v.string(),
+    formName: v.optional(v.string()),
+    campaignId: v.optional(v.string()),
+    adId: v.optional(v.string()),
+    fields: v.any(),
+    createdTime: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("leads")
+      .withIndex("by_platform_lead", (q) => q.eq("platformLeadId", args.platformLeadId))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        formName: args.formName,
+        fields: args.fields,
+        syncedAt: Date.now(),
+      });
+      return existing._id;
+    } else {
+      return await ctx.db.insert("leads", {
+        ...args,
+        syncedAt: Date.now(),
+        notified: false,
+      });
+    }
+  },
+});
+
 export const getUnnotifiedLeads = internalQuery({
   args: { accountId: v.id("connected_accounts") },
   handler: async (ctx, args) => {

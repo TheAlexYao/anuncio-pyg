@@ -3,19 +3,19 @@
 import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { createDecipheriv } from "crypto";
+import { decrypt } from "./lib/crypto";
+import type { Doc, Id } from "./_generated/dataModel";
 
-// Decrypt helper
-function decrypt(ciphertext: string, keyHex: string): string {
-  const [ivHex, tagHex, encryptedHex] = ciphertext.split(":");
-  if (!ivHex || !tagHex || !encryptedHex) throw new Error("Invalid ciphertext");
-  const key = Buffer.from(keyHex, "hex");
-  const iv = Buffer.from(ivHex, "hex");
-  const tag = Buffer.from(tagHex, "hex");
-  const encrypted = Buffer.from(encryptedHex, "hex");
-  const decipher = createDecipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
-  decipher.setAuthTag(tag);
-  return decipher.update(encrypted) + decipher.final("utf8");
+interface MetaInsightsResponse {
+  data?: Array<{
+    campaign_id?: string;
+    campaign_name?: string;
+    date_start?: string;
+    impressions?: string;
+    clicks?: string;
+    spend?: string;
+    actions?: Array<{ action_type: string; value: string }>;
+  }>;
 }
 
 // Fetch campaign insights for a single account
@@ -25,13 +25,11 @@ export const syncAccountCampaigns = internalAction({
     const encryptionKey = process.env.ENCRYPTION_KEY;
     if (!encryptionKey) throw new Error("ENCRYPTION_KEY not set");
 
-    // Get account
     const account = await ctx.runQuery(internal.metaSyncHelpers.getAccount, { accountId: args.accountId });
     if (!account) throw new Error("Account not found");
 
     const accessToken = decrypt(account.encryptedAccessToken, encryptionKey);
 
-    // Fetch campaigns with insights for last 30 days
     const datePreset = "last_30d";
     const fields = "campaign_name,impressions,clicks,spend,actions";
     const url = `https://graph.facebook.com/v21.0/${account.platformAccountId}/insights?fields=${fields}&date_preset=${datePreset}&level=campaign&time_increment=1&access_token=${accessToken}`;
@@ -41,9 +39,8 @@ export const syncAccountCampaigns = internalAction({
       const err = await res.text();
       throw new Error(`Failed to fetch insights: ${err}`);
     }
-    const data = await res.json();
+    const data = (await res.json()) as MetaInsightsResponse;
 
-    // Process each day's data
     const metrics: Array<{
       platformCampaignId: string;
       campaignName: string;
@@ -56,7 +53,6 @@ export const syncAccountCampaigns = internalAction({
     }> = [];
 
     for (const row of data.data || []) {
-      // Parse actions for leads/conversions
       let leads = 0;
       let conversions = 0;
       for (const action of row.actions || []) {
@@ -67,25 +63,23 @@ export const syncAccountCampaigns = internalAction({
       }
 
       metrics.push({
-        platformCampaignId: row.campaign_id,
-        campaignName: row.campaign_name,
-        date: row.date_start, // YYYY-MM-DD
-        impressions: parseInt(row.impressions) || 0,
-        clicks: parseInt(row.clicks) || 0,
-        spend: Math.round(parseFloat(row.spend) * 100), // Convert to cents
+        platformCampaignId: row.campaign_id || "",
+        campaignName: row.campaign_name || "",
+        date: row.date_start || "",
+        impressions: parseInt(row.impressions || "0") || 0,
+        clicks: parseInt(row.clicks || "0") || 0,
+        spend: Math.round(parseFloat(row.spend || "0") * 100),
         leads,
         conversions,
       });
     }
 
-    // Store metrics
     await ctx.runMutation(internal.metaSyncHelpers.storeCampaignMetrics, {
       accountId: args.accountId,
-      currency: account.platformAccountId.includes("act_") ? "USD" : "USD", // TODO: get from account
+      currency: "USD",
       metrics,
     });
 
-    // Update lastSyncAt
     await ctx.runMutation(internal.metaSyncHelpers.updateLastSync, { accountId: args.accountId });
 
     return { success: true, metricsCount: metrics.length };
@@ -93,20 +87,21 @@ export const syncAccountCampaigns = internalAction({
 });
 
 // Sync all connected Meta accounts
-export const syncAllMetaAccounts = action({
+export const syncAllMetaAccounts = internalAction({
   args: {},
-  handler: async (ctx) => {
-    const accounts = await ctx.runQuery(internal.metaSyncHelpers.getAllMetaAccounts, {});
+  handler: async (ctx): Promise<Array<{ accountId: Id<"connected_accounts">; success: boolean; metricsCount?: number; error?: string }>> => {
+    const accounts = await ctx.runQuery(internal.metaSyncHelpers.getAllMetaAccounts, {}) as Doc<"connected_accounts">[];
     
-    const results = [];
+    const results: Array<{ accountId: Id<"connected_accounts">; success: boolean; metricsCount?: number; error?: string }> = [];
     for (const account of accounts) {
       try {
         const result = await ctx.runAction(internal.metaSync.syncAccountCampaigns, {
           accountId: account._id,
-        });
+        }) as { success: boolean; metricsCount: number };
         results.push({ accountId: account._id, ...result });
-      } catch (error: any) {
-        results.push({ accountId: account._id, success: false, error: error.message });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        results.push({ accountId: account._id, success: false, error: message });
       }
     }
 

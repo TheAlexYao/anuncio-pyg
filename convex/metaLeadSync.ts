@@ -3,18 +3,26 @@
 import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { createDecipheriv } from "crypto";
+import { decrypt } from "./lib/crypto";
+import type { Doc, Id } from "./_generated/dataModel";
 
-function decrypt(ciphertext: string, keyHex: string): string {
-  const [ivHex, tagHex, encryptedHex] = ciphertext.split(":");
-  if (!ivHex || !tagHex || !encryptedHex) throw new Error("Invalid ciphertext");
-  const key = Buffer.from(keyHex, "hex");
-  const iv = Buffer.from(ivHex, "hex");
-  const tag = Buffer.from(tagHex, "hex");
-  const encrypted = Buffer.from(encryptedHex, "hex");
-  const decipher = createDecipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
-  decipher.setAuthTag(tag);
-  return decipher.update(encrypted) + decipher.final("utf8");
+interface MetaLeadsResponse {
+  data?: Array<{
+    id: string;
+    form_id: string;
+    field_data: Array<{ name: string; values: string[] }>;
+    created_time: string;
+    ad_id?: string;
+    campaign_id?: string;
+  }>;
+  paging?: { next?: string };
+}
+
+interface MetaFormsResponse {
+  data?: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 // Sync leads for a single account
@@ -29,75 +37,66 @@ export const syncAccountLeads = internalAction({
 
     const accessToken = decrypt(account.encryptedAccessToken, encryptionKey);
 
-    // Get lead forms for this ad account
-    const formsUrl = `https://graph.facebook.com/v21.0/${account.platformAccountId}/leadgen_forms?access_token=${accessToken}`;
+    // Get all lead forms for the account
+    const formsUrl = `https://graph.facebook.com/v21.0/${account.platformAccountId}/leadgen_forms?fields=id,name&access_token=${accessToken}`;
     const formsRes = await fetch(formsUrl);
     if (!formsRes.ok) {
       const err = await formsRes.text();
       throw new Error(`Failed to fetch lead forms: ${err}`);
     }
-    const formsData = await formsRes.json();
+    const formsData = (await formsRes.json()) as MetaFormsResponse;
 
     let totalLeads = 0;
-    let newLeads = 0;
 
-    // For each form, get recent leads
     for (const form of formsData.data || []) {
-      const leadsUrl = `https://graph.facebook.com/v21.0/${form.id}/leads?access_token=${accessToken}`;
+      // Fetch leads for each form
+      const leadsUrl = `https://graph.facebook.com/v21.0/${form.id}/leads?fields=id,field_data,created_time,ad_id,campaign_id&access_token=${accessToken}`;
       const leadsRes = await fetch(leadsUrl);
       if (!leadsRes.ok) continue;
 
-      const leadsData = await leadsRes.json();
+      const leadsData = (await leadsRes.json()) as MetaLeadsResponse;
 
       for (const lead of leadsData.data || []) {
-        totalLeads++;
-
-        // Check if lead already exists
-        const exists = await ctx.runQuery(internal.metaLeadHelpers.leadExists, {
-          platformLeadId: lead.id,
-        });
-
-        if (!exists) {
-          // Parse field data
-          const fields: Record<string, string> = {};
-          for (const field of lead.field_data || []) {
-            fields[field.name] = field.values?.[0] || "";
-          }
-
-          await ctx.runMutation(internal.metaLeadHelpers.insertLead, {
-            accountId: args.accountId,
-            platformLeadId: lead.id,
-            formId: form.id,
-            formName: form.name,
-            campaignId: lead.campaign_id,
-            adId: lead.ad_id,
-            fields,
-            createdTime: lead.created_time,
-          });
-          newLeads++;
+        // Convert field_data to object
+        const fields: Record<string, string> = {};
+        for (const field of lead.field_data || []) {
+          fields[field.name] = field.values[0] || "";
         }
+
+        await ctx.runMutation(internal.metaLeadHelpers.upsertLead, {
+          accountId: args.accountId,
+          platformLeadId: lead.id,
+          formId: form.id,
+          formName: form.name,
+          campaignId: lead.campaign_id,
+          adId: lead.ad_id,
+          fields,
+          createdTime: lead.created_time,
+        });
+        totalLeads++;
       }
     }
 
-    return { success: true, totalLeads, newLeads };
+    return { success: true, totalLeads };
   },
 });
 
-// Sync all accounts
-export const syncAllMetaLeads = action({
+// Sync all Meta accounts
+export const syncAllMetaLeads = internalAction({
   args: {},
-  handler: async (ctx) => {
-    const accounts = await ctx.runQuery(internal.metaSyncHelpers.getAllMetaAccounts, {});
+  handler: async (ctx): Promise<Array<{ accountId: Id<"connected_accounts">; success: boolean; totalLeads?: number; error?: string }>> => {
+    const accounts = await ctx.runQuery(internal.metaSyncHelpers.getAllMetaAccounts, {}) as Doc<"connected_accounts">[];
 
-    const results = [];
+    const results: Array<{ accountId: Id<"connected_accounts">; success: boolean; totalLeads?: number; error?: string }> = [];
     for (const account of accounts) {
       try {
         const result = await ctx.runAction(internal.metaLeadSync.syncAccountLeads, {
           accountId: account._id,
-        });
+        }) as { success: boolean; totalLeads: number };
         results.push({ accountId: account._id, ...result });
-      } catch (error: any) {
-        results.push({ accountId: account._id, success: false, error: error.message });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        results.push({ accountId: account._id, success: false, error: message });
       }
     }
 

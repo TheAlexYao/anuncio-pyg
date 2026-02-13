@@ -3,22 +3,7 @@
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
-import { createDecipheriv } from "crypto";
-
-function decrypt(ciphertext: string, keyHex: string): string {
-  const parts = ciphertext.split(":");
-  const ivHex = parts[0];
-  const tagHex = parts[1];
-  const encryptedHex = parts[2];
-  if (!ivHex || !tagHex || !encryptedHex) throw new Error("Invalid ciphertext");
-  const key = Buffer.from(keyHex, "hex");
-  const iv = Buffer.from(ivHex, "hex");
-  const tag = Buffer.from(tagHex, "hex");
-  const encrypted = Buffer.from(encryptedHex, "hex");
-  const decipher = createDecipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
-  decipher.setAuthTag(tag);
-  return decipher.update(encrypted) + decipher.final("utf8");
-}
+import { decrypt } from "./lib/crypto";
 
 // --- Pure helpers (exported for testing) ---
 
@@ -104,7 +89,6 @@ export const fetchLeadForms = internalAction({
     const encryptionKey = process.env.ENCRYPTION_KEY;
     if (!encryptionKey) throw new Error("ENCRYPTION_KEY not set");
 
-    // Get the connected account to find advertiserId and token
     const account = await ctx.runQuery(internal.queries.getConnectedAccount, {
       accountId: args.accountId,
     });
@@ -146,7 +130,6 @@ export const fetchLeadForms = internalAction({
 
       page++;
 
-      // Rate limit: 100ms delay between paginated requests
       if (page <= totalPages) {
         await delay(100);
       }

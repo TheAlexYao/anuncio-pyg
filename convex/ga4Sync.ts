@@ -3,18 +3,24 @@
 import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { createDecipheriv } from "crypto";
+import { decrypt } from "./lib/crypto";
+import type { Doc, Id } from "./_generated/dataModel";
 
-function decrypt(ciphertext: string, keyHex: string): string {
-  const [ivHex, tagHex, encryptedHex] = ciphertext.split(":");
-  if (!ivHex || !tagHex || !encryptedHex) throw new Error("Invalid ciphertext");
-  const key = Buffer.from(keyHex, "hex");
-  const iv = Buffer.from(ivHex, "hex");
-  const tag = Buffer.from(tagHex, "hex");
-  const encrypted = Buffer.from(encryptedHex, "hex");
-  const decipher = createDecipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
-  decipher.setAuthTag(tag);
-  return decipher.update(encrypted) + decipher.final("utf8");
+interface GA4AccountSummary {
+  accountSummaries?: Array<{
+    displayName?: string;
+    propertySummaries?: Array<{
+      property?: string;
+      displayName?: string;
+    }>;
+  }>;
+}
+
+interface GA4ReportResponse {
+  rows?: Array<{
+    dimensionValues?: Array<{ value?: string }>;
+    metricValues?: Array<{ value?: string }>;
+  }>;
 }
 
 // Fetch GA4 properties for account selection
@@ -27,14 +33,12 @@ export const fetchGA4Properties = action({
     const auth = await ctx.runQuery(internal.googleAuth.getUserAuth, { userId: args.userId });
     if (!auth) throw new Error("No Google auth found");
 
-    // Refresh token if needed
     if (auth.tokenExpiresAt < Date.now() + 60000) {
-      await ctx.runAction(internal.googleOAuth.refreshAccessToken, { userId: args.userId });
+      await ctx.runAction(internal.googleTokenRefresh.refreshAccessToken, { userId: args.userId });
     }
 
     const accessToken = decrypt(auth.encryptedAccessToken, encryptionKey);
 
-    // List all GA4 accounts
     const accountsRes = await fetch(
       "https://analyticsadmin.googleapis.com/v1beta/accountSummaries",
       { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -45,12 +49,11 @@ export const fetchGA4Properties = action({
       throw new Error(`Failed to fetch GA4 accounts: ${err}`);
     }
 
-    const accountsData = await accountsRes.json();
+    const accountsData = (await accountsRes.json()) as GA4AccountSummary;
     const properties: Array<{ propertyId: string; displayName: string; accountName: string }> = [];
 
     for (const account of accountsData.accountSummaries || []) {
       for (const prop of account.propertySummaries || []) {
-        // property format: "properties/123456789"
         const propertyId = prop.property?.replace("properties/", "") || "";
         properties.push({
           propertyId,
@@ -77,14 +80,12 @@ export const syncPropertyMetrics = internalAction({
     const accessToken = decrypt(account.encryptedAccessToken, encryptionKey);
     const propertyId = account.platformAccountId;
 
-    // Calculate date range (last 30 days)
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 30);
 
     const formatDate = (d: Date) => d.toISOString().split("T")[0];
 
-    // GA4 Data API request
     const url = `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`;
     const res = await fetch(url, {
       method: "POST",
@@ -111,7 +112,7 @@ export const syncPropertyMetrics = internalAction({
       throw new Error(`Failed to fetch GA4 metrics: ${err}`);
     }
 
-    const data = await res.json();
+    const data = (await res.json()) as GA4ReportResponse;
     const metrics: Array<{
       date: string;
       sessions: number;
@@ -124,27 +125,24 @@ export const syncPropertyMetrics = internalAction({
 
     for (const row of data.rows || []) {
       const dateValue = row.dimensionValues?.[0]?.value || "";
-      // GA4 returns date as YYYYMMDD, convert to YYYY-MM-DD
       const date = dateValue.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
 
       metrics.push({
         date,
-        sessions: parseInt(row.metricValues?.[0]?.value) || 0,
-        activeUsers: parseInt(row.metricValues?.[1]?.value) || 0,
-        pageViews: parseInt(row.metricValues?.[2]?.value) || 0,
-        conversions: parseInt(row.metricValues?.[3]?.value) || 0,
-        bounceRate: parseFloat(row.metricValues?.[4]?.value) || 0,
-        avgSessionDuration: parseFloat(row.metricValues?.[5]?.value) || 0,
+        sessions: parseInt(row.metricValues?.[0]?.value || "0") || 0,
+        activeUsers: parseInt(row.metricValues?.[1]?.value || "0") || 0,
+        pageViews: parseInt(row.metricValues?.[2]?.value || "0") || 0,
+        conversions: parseInt(row.metricValues?.[3]?.value || "0") || 0,
+        bounceRate: parseFloat(row.metricValues?.[4]?.value || "0") || 0,
+        avgSessionDuration: parseFloat(row.metricValues?.[5]?.value || "0") || 0,
       });
     }
 
-    // Store metrics
     await ctx.runMutation(internal.ga4SyncHelpers.storeGA4Metrics, {
       accountId: args.accountId,
       metrics,
     });
 
-    // Update lastSyncAt
     await ctx.runMutation(internal.metaSyncHelpers.updateLastSync, { accountId: args.accountId });
 
     return { success: true, metricsCount: metrics.length };
@@ -152,21 +150,21 @@ export const syncPropertyMetrics = internalAction({
 });
 
 // Sync all GA4 properties
-export const syncAllGA4Properties = action({
+export const syncAllGA4Properties = internalAction({
   args: {},
-  handler: async (ctx) => {
-    // GA4 properties are stored as platform="google" with propertyId prefix
-    const accounts = await ctx.runQuery(internal.ga4SyncHelpers.getAllGA4Accounts, {});
+  handler: async (ctx): Promise<Array<{ accountId: Id<"connected_accounts">; success: boolean; metricsCount?: number; error?: string }>> => {
+    const accounts = await ctx.runQuery(internal.ga4SyncHelpers.getAllGA4Accounts, {}) as Doc<"connected_accounts">[];
 
-    const results = [];
+    const results: Array<{ accountId: Id<"connected_accounts">; success: boolean; metricsCount?: number; error?: string }> = [];
     for (const account of accounts) {
       try {
         const result = await ctx.runAction(internal.ga4Sync.syncPropertyMetrics, {
           accountId: account._id,
-        });
+        }) as { success: boolean; metricsCount: number };
         results.push({ accountId: account._id, ...result });
-      } catch (error: any) {
-        results.push({ accountId: account._id, success: false, error: error.message });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        results.push({ accountId: account._id, success: false, error: message });
       }
     }
 

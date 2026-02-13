@@ -1,5 +1,6 @@
-import { internalQuery, internalMutation } from "./_generated/server";
+import { internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 export const getUserAuth = internalQuery({
   args: { userId: v.id("users") },
@@ -96,14 +97,12 @@ export const saveConnectedAccounts = internalMutation({
     const existingIds = new Set(existing.map((a) => a.platformAccountId));
     const newIds = new Set(args.accounts.map((a) => a.platformAccountId));
 
-    // Remove deselected
     for (const acc of existing) {
       if (!newIds.has(acc.platformAccountId)) {
         await ctx.db.delete(acc._id);
       }
     }
 
-    // Add new
     for (const acc of args.accounts) {
       if (!existingIds.has(acc.platformAccountId)) {
         await ctx.db.insert("connected_accounts", {

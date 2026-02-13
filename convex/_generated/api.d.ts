@@ -15,6 +15,8 @@ import type * as googleAdsSync from "../googleAdsSync.js";
 import type * as googleAdsSyncHelpers from "../googleAdsSyncHelpers.js";
 import type * as googleAuth from "../googleAuth.js";
 import type * as googleOAuth from "../googleOAuth.js";
+import type * as googleTokenRefresh from "../googleTokenRefresh.js";
+import type * as lib_crypto from "../lib/crypto.js";
 import type * as metaAuth from "../metaAuth.js";
 import type * as metaLeadHelpers from "../metaLeadHelpers.js";
 import type * as metaLeadSync from "../metaLeadSync.js";
@@ -39,6 +41,8 @@ declare const fullApi: ApiFromModules<{
   googleAdsSyncHelpers: typeof googleAdsSyncHelpers;
   googleAuth: typeof googleAuth;
   googleOAuth: typeof googleOAuth;
+  googleTokenRefresh: typeof googleTokenRefresh;
+  "lib/crypto": typeof lib_crypto;
   metaAuth: typeof metaAuth;
   metaLeadHelpers: typeof metaLeadHelpers;
   metaLeadSync: typeof metaLeadSync;

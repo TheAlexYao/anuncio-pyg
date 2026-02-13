@@ -2,29 +2,22 @@
 
 import { action } from "./_generated/server";
 import { v } from "convex/values";
-import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import { internal } from "./_generated/api";
+import { encrypt, decrypt } from "./lib/crypto";
 
-// Crypto helpers
-function encrypt(plaintext: string, keyHex: string): string {
-  const key = Buffer.from(keyHex, "hex");
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
-  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `${iv.toString("hex")}:${tag.toString("hex")}:${encrypted.toString("hex")}`;
+interface GoogleTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
 }
 
-function decrypt(ciphertext: string, keyHex: string): string {
-  const [ivHex, tagHex, encryptedHex] = ciphertext.split(":");
-  if (!ivHex || !tagHex || !encryptedHex) throw new Error("Invalid ciphertext");
-  const key = Buffer.from(keyHex, "hex");
-  const iv = Buffer.from(ivHex, "hex");
-  const tag = Buffer.from(tagHex, "hex");
-  const encrypted = Buffer.from(encryptedHex, "hex");
-  const decipher = createDecipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
-  decipher.setAuthTag(tag);
-  return decipher.update(encrypted) + decipher.final("utf8");
+interface GoogleCustomerResponse {
+  resourceNames?: string[];
+}
+
+interface GoogleAccountDetail {
+  descriptiveName?: string;
+  currencyCode?: string;
 }
 
 const GOOGLE_SCOPES = [
@@ -66,7 +59,6 @@ export const exchangeCodeForTokens = action({
     if (!clientId || !clientSecret) throw new Error("Google credentials not set");
     if (!encryptionKey) throw new Error("ENCRYPTION_KEY not set");
 
-    // Exchange code for tokens
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -84,9 +76,8 @@ export const exchangeCodeForTokens = action({
       throw new Error(`Token exchange failed: ${err}`);
     }
 
-    const tokenData = await tokenRes.json();
+    const tokenData = (await tokenRes.json()) as GoogleTokenResponse;
 
-    // Encrypt tokens
     const encryptedAccess = encrypt(tokenData.access_token, encryptionKey);
     const encryptedRefresh = tokenData.refresh_token
       ? encrypt(tokenData.refresh_token, encryptionKey)
@@ -94,7 +85,6 @@ export const exchangeCodeForTokens = action({
 
     const expiresAt = Date.now() + (tokenData.expires_in || 3600) * 1000;
 
-    // Store tokens
     await ctx.runMutation(internal.googleAuth.storeUserAuth, {
       userId: args.userId,
       encryptedAccessToken: encryptedAccess,
@@ -142,7 +132,7 @@ export const refreshAccessToken = action({
       throw new Error(`Token refresh failed: ${err}`);
     }
 
-    const tokenData = await tokenRes.json();
+    const tokenData = (await tokenRes.json()) as GoogleTokenResponse;
     const encryptedAccess = encrypt(tokenData.access_token, encryptionKey);
     const expiresAt = Date.now() + (tokenData.expires_in || 3600) * 1000;
 
@@ -168,20 +158,17 @@ export const fetchAdsAccounts = action({
       throw new Error("Missing credentials");
     }
 
-    const auth = await ctx.runQuery(internal.googleAuth.getUserAuth, { userId: args.userId });
+    let auth = await ctx.runQuery(internal.googleAuth.getUserAuth, { userId: args.userId });
     if (!auth) throw new Error("No Google auth found");
 
-    // Check if token expired, refresh if needed
     if (auth.tokenExpiresAt < Date.now() + 60000) {
-      await ctx.runAction(internal.googleOAuth.refreshAccessToken, { userId: args.userId });
-      // Re-fetch auth
-      const newAuth = await ctx.runQuery(internal.googleAuth.getUserAuth, { userId: args.userId });
-      if (!newAuth) throw new Error("Auth refresh failed");
+      await ctx.runAction(internal.googleTokenRefresh.refreshAccessToken, { userId: args.userId });
+      auth = await ctx.runQuery(internal.googleAuth.getUserAuth, { userId: args.userId });
+      if (!auth) throw new Error("Auth refresh failed");
     }
 
     const accessToken = decrypt(auth.encryptedAccessToken, encryptionKey);
 
-    // List accessible customers
     const url = "https://googleads.googleapis.com/v18/customers:listAccessibleCustomers";
     const res = await fetch(url, {
       headers: {
@@ -195,11 +182,10 @@ export const fetchAdsAccounts = action({
       throw new Error(`Failed to fetch accounts: ${err}`);
     }
 
-    const data = await res.json();
+    const data = (await res.json()) as GoogleCustomerResponse;
     const customerIds = data.resourceNames?.map((r: string) => r.replace("customers/", "")) || [];
 
-    // Get account details for each
-    const accounts = [];
+    const accounts: Array<{ customerId: string; name: string; currencyCode: string }> = [];
     for (const customerId of customerIds) {
       try {
         const detailRes = await fetch(
@@ -213,7 +199,7 @@ export const fetchAdsAccounts = action({
           }
         );
         if (detailRes.ok) {
-          const detail = await detailRes.json();
+          const detail = (await detailRes.json()) as GoogleAccountDetail;
           accounts.push({
             customerId,
             name: detail.descriptiveName || customerId,

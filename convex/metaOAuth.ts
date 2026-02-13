@@ -2,33 +2,24 @@
 
 import { action } from "./_generated/server";
 import { v } from "convex/values";
-import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import { internal } from "./_generated/api";
+import { encrypt, decrypt } from "./lib/crypto";
 
-// Crypto helpers
-const ALGORITHM = "aes-256-gcm";
-const IV_LENGTH = 12;
-const TAG_LENGTH = 16;
-
-function encrypt(plaintext: string, keyHex: string): string {
-  const key = Buffer.from(keyHex, "hex");
-  const iv = randomBytes(IV_LENGTH);
-  const cipher = createCipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
-  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `${iv.toString("hex")}:${tag.toString("hex")}:${encrypted.toString("hex")}`;
+interface MetaTokenResponse {
+  access_token: string;
+  expires_in?: number;
 }
 
-function decrypt(ciphertext: string, keyHex: string): string {
-  const [ivHex, tagHex, encryptedHex] = ciphertext.split(":");
-  if (!ivHex || !tagHex || !encryptedHex) throw new Error("Invalid ciphertext format");
-  const key = Buffer.from(keyHex, "hex");
-  const iv = Buffer.from(ivHex, "hex");
-  const tag = Buffer.from(tagHex, "hex");
-  const encrypted = Buffer.from(encryptedHex, "hex");
-  const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
-  decipher.setAuthTag(tag);
-  return decipher.update(encrypted) + decipher.final("utf8");
+interface MetaAdAccount {
+  id: string;
+  account_id: string;
+  name: string;
+  currency: string;
+  account_status: number;
+}
+
+interface MetaAdAccountsResponse {
+  data: MetaAdAccount[];
 }
 
 // Generate Meta OAuth URL
@@ -76,7 +67,7 @@ export const exchangeCodeForTokens = action({
       const err = await tokenRes.text();
       throw new Error(`Token exchange failed: ${err}`);
     }
-    const tokenData = await tokenRes.json();
+    const tokenData = (await tokenRes.json()) as MetaTokenResponse;
 
     // Exchange for long-lived token
     const longLivedUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
@@ -90,9 +81,8 @@ export const exchangeCodeForTokens = action({
       const err = await longLivedRes.text();
       throw new Error(`Long-lived token exchange failed: ${err}`);
     }
-    const longLivedData = await longLivedRes.json();
+    const longLivedData = (await longLivedRes.json()) as MetaTokenResponse;
 
-    // Encrypt and store
     const encryptedToken = encrypt(longLivedData.access_token, encryptionKey);
     const expiresAt = Date.now() + (longLivedData.expires_in || 5184000) * 1000;
 
@@ -125,9 +115,9 @@ export const fetchAdAccounts = action({
       const err = await res.text();
       throw new Error(`Failed to fetch ad accounts: ${err}`);
     }
-    const data = await res.json();
+    const data = (await res.json()) as MetaAdAccountsResponse;
 
-    return data.data.map((acc: any) => ({
+    return data.data.map((acc) => ({
       id: acc.id,
       accountId: acc.account_id,
       name: acc.name,
@@ -149,7 +139,6 @@ export const saveSelectedAccounts = action({
     ),
   },
   handler: async (ctx, args) => {
-    // Get user's auth to copy tokens to connected accounts
     const auth = await ctx.runQuery(internal.metaAuth.getUserAuth, { userId: args.userId });
     if (!auth) throw new Error("No Meta auth found for user");
 
