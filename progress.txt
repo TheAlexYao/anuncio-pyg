@@ -7,3 +7,16 @@
 - Files: convex/lib/crypto.ts, convex/lib/crypto.test.ts
 - **Learnings:** Empty string encrypts to empty hex — use `=== undefined` not `!val` for format validation since empty string is falsy
 ---
+
+## 2026-02-13 19:20 - US-004: Create Meta Lead Retrieval API client helper
+- Created convex/lib/metaLeads.ts with getPages, getLeadForms, getLeadsByForm functions
+- getPages: GET /v21.0/me/accounts?fields=id,name
+- getLeadForms: GET /v21.0/{pageId}/leadgen_forms?fields=id,name,status
+- getLeadsByForm: GET /v21.0/{formId}/leads?fields=id,created_time,field_data with optional since filter
+- Exported types: MetaPage, MetaLeadForm, MetaLead
+- Generic metaGet helper handles auth token injection and Meta error parsing
+- Created convex/lib/metaLeads.test.ts with 14 tests: URL construction (3), token inclusion, data return (3), error handling (3), since filter (2), non-Meta error format, exports
+- All 14 tests pass, no new typecheck errors
+- Files: convex/lib/metaLeads.ts, convex/lib/metaLeads.test.ts
+- **Learnings:** Mock fetch globally with beforeEach/afterEach restore pattern; Meta filtering uses JSON array in query param
+---
