@@ -64,4 +64,20 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_form", ["userId", "formId"])
     .index("by_synced_at", ["syncedAt"]),
+
+  leadSyncLog: defineTable({
+    connectedAccountId: v.id("connectedAccounts"),
+    status: v.union(
+      v.literal("running"),
+      v.literal("success"),
+      v.literal("error")
+    ),
+    leadsFound: v.number(),
+    leadsCreated: v.number(),
+    error: v.optional(v.string()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_account", ["connectedAccountId"])
+    .index("by_status", ["status"]),
 });
