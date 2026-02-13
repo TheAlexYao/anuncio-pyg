@@ -20,3 +20,17 @@
 - Files: convex/lib/metaLeads.ts, convex/lib/metaLeads.test.ts
 - **Learnings:** Mock fetch globally with beforeEach/afterEach restore pattern; Meta filtering uses JSON array in query param
 ---
+
+## 2026-02-13 20:06 - US-008: Create HTTP action for OAuth callback endpoint
+- Created convex/http.ts with httpRouter, GET /auth/google/callback route
+- Handler extracts code and state from query params, parses state for userId
+- Calls exchangeCodeForTokens internal action, redirects to /settings/connections with status
+- Handles missing code, missing state, invalid state, and exchange errors gracefully (all 302 redirects)
+- Created convex/google/exchangeCode.ts with exchangeCodeForTokens internal action
+- Exchange action POSTs to Google token endpoint, encrypts tokens, stores via storeTokens mutation
+- Exported pure helpers: buildRedirectUrl, parseState, buildExchangeBody, parseExchangeResponse
+- Created convex/http.test.ts (12 tests) and convex/google/exchangeCode.test.ts (13 tests) — 25 total, all pass
+- Convex codegen clean
+- Files: convex/http.ts, convex/http.test.ts, convex/google/exchangeCode.ts, convex/google/exchangeCode.test.ts
+- **Learnings:** Convex httpRouter uses `httpAction` from _generated/server; httpAction handler receives (ctx, request) where request is a standard Request object
+---
