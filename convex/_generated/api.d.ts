@@ -8,8 +8,10 @@
  * @module
  */
 
-import type * as metaAuth from "../metaAuth.js";
-import type * as metaOAuth from "../metaOAuth.js";
+import type * as alertRules from "../alertRules.js";
+import type * as metaSync from "../metaSync.js";
+import type * as metaSyncHelpers from "../metaSyncHelpers.js";
+import type * as queries from "../queries.js";
 
 import type {
   ApiFromModules,
@@ -18,8 +20,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  metaAuth: typeof metaAuth;
-  metaOAuth: typeof metaOAuth;
+  alertRules: typeof alertRules;
+  metaSync: typeof metaSync;
+  metaSyncHelpers: typeof metaSyncHelpers;
+  queries: typeof queries;
 }>;
 
 /**
