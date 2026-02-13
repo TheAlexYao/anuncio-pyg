@@ -24,4 +24,11 @@ crons.interval(
   internal.googleAdsSync.syncAllGoogleAdsAccounts
 );
 
+// Sync GA4 metrics every 4 hours
+crons.interval(
+  "sync-ga4-metrics",
+  { hours: 4 },
+  internal.ga4Sync.syncAllGA4Properties
+);
+
 export default crons;
