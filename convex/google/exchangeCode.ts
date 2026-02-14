@@ -61,9 +61,10 @@ export function parseExchangeResponse(data: unknown): {
 export const exchangeCodeForTokens = internalAction({
   args: {
     code: v.string(),
-    userId: v.id("users"),
+    tenantId: v.id("tenants"),
+    brandId: v.optional(v.id("brands")),
   },
-  handler: async (ctx, args): Promise<void> => {
+  handler: async (ctx, args): Promise<string> => {
     const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
     if (!encryptionKey) {
       throw new Error("TOKEN_ENCRYPTION_KEY environment variable is not set");
@@ -97,10 +98,11 @@ export const exchangeCodeForTokens = internalAction({
       : undefined;
     const tokenExpiresAt = Date.now() + parsed.expires_in * 1000;
 
-    await ctx.runMutation(
+    const userAuthId = await ctx.runMutation(
       (internal as any).auth.tokens.storeTokens,
       {
-        userId: args.userId,
+        tenantId: args.tenantId,
+        brandId: args.brandId,
         platform: "google" as const,
         encryptedAccessToken,
         encryptedRefreshToken: encryptedRefreshToken ?? "",
@@ -108,5 +110,7 @@ export const exchangeCodeForTokens = internalAction({
         scopes: GOOGLE_SCOPES,
       }
     );
+
+    return userAuthId;
   },
 });

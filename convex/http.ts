@@ -10,26 +10,39 @@ const http = httpRouter();
 export function buildRedirectUrl(
   baseUrl: string,
   status: "success" | "error",
-  message?: string
+  message?: string,
+  syncing?: boolean
 ): string {
   const url = new URL(`${baseUrl}/settings/connections`);
   url.searchParams.set("status", status);
   if (message) {
     url.searchParams.set("message", message);
   }
+  if (syncing) {
+    url.searchParams.set("syncing", "true");
+  }
   return url.toString();
 }
 
 /**
- * Parse the OAuth state parameter to extract userId.
+ * Parse the OAuth state parameter to extract tenant context.
  */
-export function parseState(stateParam: string): { userId: string } {
+export function parseState(stateParam: string): {
+  tenantId: string;
+  brandId?: string;
+} {
   try {
     const parsed = JSON.parse(stateParam);
-    if (typeof parsed.userId !== "string" || !parsed.userId) {
-      throw new Error("Missing userId in state");
+    if (typeof parsed.tenantId !== "string" || !parsed.tenantId) {
+      throw new Error("Missing tenantId in state");
     }
-    return { userId: parsed.userId };
+    if (
+      "brandId" in parsed &&
+      (typeof parsed.brandId !== "string" || !parsed.brandId)
+    ) {
+      throw new Error("Invalid brandId in state");
+    }
+    return { tenantId: parsed.tenantId, brandId: parsed.brandId };
   } catch {
     throw new Error("Invalid state parameter");
   }
@@ -70,10 +83,12 @@ http.route({
       });
     }
 
-    let userId: string;
+    let tenantId: string;
+    let brandId: string | undefined;
     try {
       const parsed = parseState(state);
-      userId = parsed.userId;
+      tenantId = parsed.tenantId;
+      brandId = parsed.brandId;
     } catch {
       const redirectUrl = buildRedirectUrl(
         frontendUrl,
@@ -87,12 +102,19 @@ http.route({
     }
 
     try {
-      await ctx.runAction(
+      const userAuthId = await ctx.runAction(
         (internal as any).google.exchangeCode.exchangeCodeForTokens,
-        { code, userId }
+        { code, tenantId, brandId }
       );
 
-      const redirectUrl = buildRedirectUrl(frontendUrl, "success");
+      // Schedule account sync in the background (don't block the redirect)
+      await ctx.scheduler.runAfter(
+        0,
+        (internal as any).google.accounts.syncGoogleAccounts,
+        { tenantId, brandId, userAuthId }
+      );
+
+      const redirectUrl = buildRedirectUrl(frontendUrl, "success", undefined, true);
       return new Response(null, {
         status: 302,
         headers: { Location: redirectUrl },
