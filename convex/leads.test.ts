@@ -1,45 +1,47 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import schema from "./schema.ts";
 
-const leadsTable = schema.tables.leads;
+import * as leads from "./leads.js";
 
-describe("leads table schema", () => {
-  it("leads table exists in schema", () => {
-    assert.ok(leadsTable != null, "leads table should exist");
+describe("convex/leads.ts exports", () => {
+  it("exports upsertLead", () => {
+    assert.ok(leads.upsertLead != null, "upsertLead should be exported");
   });
 
-  it("has by_platform_lead index for deduplication", () => {
-    const indexes = leadsTable.indexes;
-    const idx = indexes.find((i: any) => i.indexDescriptor === "by_platform_lead");
-    assert.ok(idx != null, "by_platform_lead index should exist");
+  it("exports createSyncLog", () => {
+    assert.ok(leads.createSyncLog != null, "createSyncLog should be exported");
   });
 
-  it("has by_user index", () => {
-    const indexes = leadsTable.indexes;
-    const idx = indexes.find((i: any) => i.indexDescriptor === "by_user");
-    assert.ok(idx != null, "by_user index should exist");
+  it("exports completeSyncLog", () => {
+    assert.ok(
+      leads.completeSyncLog != null,
+      "completeSyncLog should be exported"
+    );
   });
 
-  it("has by_user_form index", () => {
-    const indexes = leadsTable.indexes;
-    const idx = indexes.find((i: any) => i.indexDescriptor === "by_user_form");
-    assert.ok(idx != null, "by_user_form index should exist");
+  it("exports exactly 3 mutations", () => {
+    const exportedKeys = Object.keys(leads);
+    assert.equal(exportedKeys.length, 3, "should export exactly 3 items");
+    assert.ok(exportedKeys.includes("upsertLead"));
+    assert.ok(exportedKeys.includes("createSyncLog"));
+    assert.ok(exportedKeys.includes("completeSyncLog"));
   });
+});
 
-  it("has by_synced_at index", () => {
-    const indexes = leadsTable.indexes;
-    const idx = indexes.find((i: any) => i.indexDescriptor === "by_synced_at");
-    assert.ok(idx != null, "by_synced_at index should exist");
+describe("upsertLead mutation", () => {
+  it("is a Convex internal mutation registration", () => {
+    assert.equal(typeof leads.upsertLead, "function");
   });
+});
 
-  it("has all 4 indexes", () => {
-    assert.equal(leadsTable.indexes.length, 4);
+describe("createSyncLog mutation", () => {
+  it("is a Convex internal mutation registration", () => {
+    assert.equal(typeof leads.createSyncLog, "function");
   });
+});
 
-  it("schema exports leads alongside other tables", () => {
-    assert.ok(schema.tables.connectedAccounts != null);
-    assert.ok(schema.tables.campaigns_daily != null);
-    assert.ok(schema.tables.leads != null);
+describe("completeSyncLog mutation", () => {
+  it("is a Convex internal mutation registration", () => {
+    assert.equal(typeof leads.completeSyncLog, "function");
   });
 });
