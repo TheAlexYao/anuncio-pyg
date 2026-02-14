@@ -35,3 +35,13 @@
 - Pure helper pattern: isTokenExpired, buildRefreshBody, parseTokenResponse exported for testing
 - **Learnings:** Convex lib files using Node APIs need "use node" directive even if only imported by action files; pure helper extraction pattern continues to work well for testability
 ---
+
+## 2026-02-13 21:23 - US-006: Build OAuth token exchange action
+- convex/google/exchangeCode.ts already implemented as part of US-008 commit
+- Contains exchangeCodeForTokens internalAction: POSTs to Google token endpoint, parses response, encrypts tokens, calls storeTokens
+- Pure helpers exported: buildExchangeBody, parseExchangeResponse
+- convex/google/exchangeCode.test.ts has 13 tests: body building (5), response parsing (7), export check (1)
+- All 13 tests pass, typecheck clean, Convex build clean
+- Files: convex/google/exchangeCode.ts, convex/google/exchangeCode.test.ts
+- **Learnings:** This story was already fully implemented in US-008's commit — callback endpoint needed the exchange action
+---
