@@ -76,7 +76,6 @@ export const toggleSync = internalMutation({
     id: v.id("connected_accounts"),
     syncEnabled: v.boolean(),
   },
-  returns: v.array(v.id("connected_accounts")),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.id, {
       syncEnabled: args.syncEnabled,
@@ -88,7 +87,6 @@ export const listByTenant = internalQuery({
   args: {
     tenantId: v.id("tenants"),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("connected_accounts")

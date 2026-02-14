@@ -100,7 +100,7 @@ export const fetchGA4Properties = internalAction({
   args: {
     userAuthId: v.id("user_auth"),
   },
-  returns: v.array(v.object({ propertyId: v.string(), displayName: v.string() })),
+  returns: v.array(v.object({ propertyId: v.string(), displayName: v.string(), accountName: v.string() })),
   handler: async (
     ctx,
     args
@@ -132,7 +132,7 @@ export const fetchGoogleAdsAccounts = internalAction({
   args: {
     userAuthId: v.id("user_auth"),
   },
-  returns: v.array(v.object({ customerId: v.string(), descriptiveName: v.optional(v.string()), currencyCode: v.optional(v.string()), timeZone: v.optional(v.string()) })),
+  returns: v.array(v.object({ customerId: v.string(), name: v.string() })),
   handler: async (ctx, args): Promise<{ customerId: string; name: string }[]> => {
     const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
     if (!developerToken) {
@@ -282,7 +282,7 @@ export const syncGoogleAccounts = internalAction({
     const allRecords = [...adsRecords, ...ga4Records];
 
     if (allRecords.length === 0) {
-      return { adsCount: 0, ga4Count: 0, totalStored: 0 };
+      return;
     }
 
     // Store all accounts
@@ -290,11 +290,5 @@ export const syncGoogleAccounts = internalAction({
       (internal as any).auth.connectedAccounts.bulkStoreAccounts,
       { accounts: allRecords }
     );
-
-    return {
-      adsCount: adsRecords.length,
-      ga4Count: ga4Records.length,
-      totalStored: allRecords.length,
-    };
   },
 });
