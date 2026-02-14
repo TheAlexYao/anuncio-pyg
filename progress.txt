@@ -47,3 +47,23 @@
 - Files: convex/metaLeadSync.ts, convex/metaLeadSync.test.ts
 - **Learnings:** Convex generated types may not include new tables until `npx convex dev` runs — use `as any` casts for index queries on newly-added tables
 ---
+
+## 2026-02-14 03:03 - US-005: Create internal mutations for lead upsert with deduplication
+- Created convex/leads.ts with 3 internal mutations: upsertLead, createSyncLog, completeSyncLog
+- upsertLead queries by_platform_lead index, skips insert if lead exists, returns { inserted: boolean }
+- createSyncLog inserts leadSyncLog with status 'running', leadsFound/leadsCreated 0
+- completeSyncLog patches log with final status, counts, completedAt, optional error
+- All use v validators for args, internalMutation (not client-exposed)
+- Used (ctx.db as any) cast since codegen can't run (pre-existing crypto import issue)
+- Created convex/leads.test.ts with 7 tests: export checks (4), type checks (3)
+- All 7 tests pass, no new typecheck errors
+- Files: convex/leads.ts, convex/leads.test.ts
+- **Learnings:** Convex internalMutation exports are functions (typeof === 'function'), not objects
+---
+
+## 2026-02-14 06:23 - US-008: Set up cron job for 15-minute lead sync
+- Created `convex/crons.ts` with cronJobs() config
+- Scheduled `meta-lead-sync` interval every 15 minutes calling `internal.metaLeadSync.syncLeads`
+- Files: convex/crons.ts, convex/crons.test.ts
+- **Learnings:** Crons use `cronJobs()` from `convex/server`, import `internal` for internal actions, pattern matches docs/convex.md
+---
