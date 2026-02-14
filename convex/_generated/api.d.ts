@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as accounts from "../accounts.js";
 import type * as auth_connectedAccounts from "../auth/connectedAccounts.js";
 import type * as auth_tokens from "../auth/tokens.js";
 import type * as crons from "../crons.js";
@@ -32,6 +33,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accounts: typeof accounts;
   "auth/connectedAccounts": typeof auth_connectedAccounts;
   "auth/tokens": typeof auth_tokens;
   crons: typeof crons;
