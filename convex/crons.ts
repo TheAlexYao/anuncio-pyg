@@ -3,25 +3,46 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Sync Meta campaigns every 4 hours
 crons.interval(
-  "sync-meta-campaigns",
+  "meta campaign sync",
   { hours: 4 },
-  internal.metaSync.syncAllMetaAccounts
+  (internal as any).meta.sync.syncAllMetaAccounts,
+  {}
 );
 
-// Sync Meta leads every 15 minutes
 crons.interval(
-  "sync-meta-leads",
+  "google ads campaign sync",
+  { hours: 4 },
+  (internal as any).google.sync.syncAllGoogleAdsAccounts,
+  {}
+);
+
+crons.interval(
+  "tiktok campaign sync",
+  { hours: 4 },
+  (internal as any).tiktok.sync.syncAllTikTokAccounts,
+  {}
+);
+
+crons.interval(
+  "meta lead sync",
   { minutes: 15 },
-  internal.metaLeadSync.syncAllMetaLeads
+  (internal as any).meta.leadSync.syncAllMetaLeadAccounts,
+  {}
 );
 
-// Sync Google Ads campaigns every 4 hours
 crons.interval(
-  "sync-google-ads-campaigns",
+  "tiktok lead sync",
+  { minutes: 15 },
+  (internal as any).tiktok.sync.syncAllTikTokLeadAccounts,
+  {}
+);
+
+crons.interval(
+  "ga4 property sync",
   { hours: 4 },
-  internal.googleAdsSync.syncAllGoogleAdsAccounts
+  (internal as any).ga4.sync.syncAllGA4Properties,
+  {}
 );
 
 export default crons;
