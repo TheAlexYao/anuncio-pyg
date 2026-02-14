@@ -61,6 +61,72 @@ export function parseCustomerDetails(data: unknown): { customerId: string; name:
   return { customerId: id, name };
 }
 
+const GA4_ADMIN_BASE_URL = "https://analyticsadmin.googleapis.com/v1beta";
+
+/**
+ * Parse GA4 accountSummaries response into a flat array of properties.
+ */
+export function parseGA4AccountSummaries(
+  data: unknown
+): { propertyId: string; displayName: string; accountName: string }[] {
+  if (typeof data !== "object" || data === null) return [];
+  const d = data as Record<string, unknown>;
+  const summaries = Array.isArray(d.accountSummaries) ? d.accountSummaries : [];
+  const results: { propertyId: string; displayName: string; accountName: string }[] = [];
+
+  for (const summary of summaries) {
+    if (typeof summary !== "object" || summary === null) continue;
+    const s = summary as Record<string, unknown>;
+    const accountName = typeof s.displayName === "string" ? s.displayName : "";
+    const propertySummaries = Array.isArray(s.propertySummaries) ? s.propertySummaries : [];
+
+    for (const prop of propertySummaries) {
+      if (typeof prop !== "object" || prop === null) continue;
+      const p = prop as Record<string, unknown>;
+      // property field is like "properties/12345"
+      const propertyResource = typeof p.property === "string" ? p.property : "";
+      const propertyId = propertyResource.includes("/")
+        ? propertyResource.split("/")[1] ?? propertyResource
+        : propertyResource;
+      const displayName = typeof p.displayName === "string" ? p.displayName : "";
+      results.push({ propertyId, displayName, accountName });
+    }
+  }
+
+  return results;
+}
+
+export const fetchGA4Properties = internalAction({
+  args: {
+    userAuthId: v.id("user_auth"),
+  },
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ propertyId: string; displayName: string; accountName: string }[]> => {
+    const accessToken: string = await ctx.runAction(
+      (internal as any).google.oauth.getValidAccessToken,
+      { userAuthId: args.userAuthId }
+    );
+
+    const url = `${GA4_ADMIN_BASE_URL}/accountSummaries`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`GA4 accountSummaries failed (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    return parseGA4AccountSummaries(data);
+  },
+});
+
 export const fetchGoogleAdsAccounts = internalAction({
   args: {
     userAuthId: v.id("user_auth"),
