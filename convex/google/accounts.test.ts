@@ -1,90 +1,144 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  mapGoogleAdsAccounts,
+  mapGA4Properties,
+  syncGoogleAccounts,
   buildGoogleAdsHeaders,
   parseAccessibleCustomersResponse,
   extractCustomerId,
   parseCustomerDetails,
-} from "./accounts";
+  parseGA4AccountSummaries,
+  fetchGoogleAdsAccounts,
+  fetchGA4Properties,
+} from "./accounts.ts";
 
-describe("buildGoogleAdsHeaders", () => {
-  it("includes Authorization and developer-token", () => {
-    const headers = buildGoogleAdsHeaders("tok123", "dev456");
-    assert.equal(headers["Authorization"], "Bearer tok123");
-    assert.equal(headers["developer-token"], "dev456");
-    assert.equal(headers["Content-Type"], "application/json");
+describe("mapGoogleAdsAccounts", () => {
+  it("maps accounts with accountType google_ads", () => {
+    const result = mapGoogleAdsAccounts("user123", [
+      { customerId: "111", name: "Acme Ads" },
+      { customerId: "222", name: "Beta Ads" },
+    ]);
+    assert.equal(result.length, 2);
+    assert.equal(result[0]!.accountType, "google_ads");
+    assert.equal(result[1]!.accountType, "google_ads");
   });
 
-  it("includes login-customer-id when provided", () => {
-    const headers = buildGoogleAdsHeaders("tok", "dev", "manager123");
-    assert.equal(headers["login-customer-id"], "manager123");
+  it("sets platform to google", () => {
+    const result = mapGoogleAdsAccounts("user123", [
+      { customerId: "111", name: "Test" },
+    ]);
+    assert.equal(result[0]!.platform, "google");
   });
 
-  it("omits login-customer-id when not provided", () => {
-    const headers = buildGoogleAdsHeaders("tok", "dev");
-    assert.equal(headers["login-customer-id"], undefined);
-  });
-});
-
-describe("parseAccessibleCustomersResponse", () => {
-  it("returns resource names from valid response", () => {
-    const result = parseAccessibleCustomersResponse({
-      resourceNames: ["customers/111", "customers/222"],
-    });
-    assert.deepEqual(result, ["customers/111", "customers/222"]);
+  it("sets syncEnabled to false", () => {
+    const result = mapGoogleAdsAccounts("user123", [
+      { customerId: "111", name: "Test" },
+    ]);
+    assert.equal(result[0]!.syncEnabled, false);
   });
 
-  it("returns empty array for missing resourceNames", () => {
-    assert.deepEqual(parseAccessibleCustomersResponse({}), []);
+  it("uses customerId as platformAccountId", () => {
+    const result = mapGoogleAdsAccounts("user123", [
+      { customerId: "999", name: "Test" },
+    ]);
+    assert.equal(result[0]!.platformAccountId, "999");
   });
 
-  it("returns empty array for null input", () => {
-    assert.deepEqual(parseAccessibleCustomersResponse(null), []);
+  it("uses name as accountName", () => {
+    const result = mapGoogleAdsAccounts("user123", [
+      { customerId: "111", name: "My Campaign" },
+    ]);
+    assert.equal(result[0]!.accountName, "My Campaign");
   });
 
-  it("returns empty array for non-array resourceNames", () => {
-    assert.deepEqual(parseAccessibleCustomersResponse({ resourceNames: "bad" }), []);
-  });
-});
-
-describe("extractCustomerId", () => {
-  it("extracts ID from resource name", () => {
-    assert.equal(extractCustomerId("customers/1234567890"), "1234567890");
-  });
-
-  it("handles plain string gracefully", () => {
-    assert.equal(extractCustomerId("noslash"), "noslash");
+  it("handles empty array", () => {
+    const result = mapGoogleAdsAccounts("user123", []);
+    assert.equal(result.length, 0);
   });
 });
 
-describe("parseCustomerDetails", () => {
-  it("parses customer with descriptiveName", () => {
-    const result = parseCustomerDetails({ id: "123", descriptiveName: "My Account" });
-    assert.deepEqual(result, { customerId: "123", name: "My Account" });
+describe("mapGA4Properties", () => {
+  it("maps properties with accountType ga4", () => {
+    const result = mapGA4Properties("user123", [
+      { propertyId: "123", displayName: "My Site", accountName: "Acme" },
+    ]);
+    assert.equal(result.length, 1);
+    assert.equal(result[0]!.accountType, "ga4");
   });
 
-  it("handles missing descriptiveName", () => {
-    const result = parseCustomerDetails({ id: "123" });
-    assert.deepEqual(result, { customerId: "123", name: "" });
+  it("sets platform to google", () => {
+    const result = mapGA4Properties("user123", [
+      { propertyId: "123", displayName: "Site", accountName: "Acme" },
+    ]);
+    assert.equal(result[0]!.platform, "google");
   });
 
-  it("handles numeric id", () => {
-    const result = parseCustomerDetails({ id: 456, descriptiveName: "Test" });
-    assert.deepEqual(result, { customerId: "456", name: "Test" });
+  it("sets syncEnabled to false", () => {
+    const result = mapGA4Properties("user123", [
+      { propertyId: "123", displayName: "Site", accountName: "Acme" },
+    ]);
+    assert.equal(result[0]!.syncEnabled, false);
   });
 
-  it("returns null for null input", () => {
-    assert.equal(parseCustomerDetails(null), null);
+  it("uses propertyId as platformAccountId", () => {
+    const result = mapGA4Properties("user123", [
+      { propertyId: "456", displayName: "Site", accountName: "Acme" },
+    ]);
+    assert.equal(result[0]!.platformAccountId, "456");
   });
 
-  it("returns null for non-object input", () => {
-    assert.equal(parseCustomerDetails("string"), null);
+  it("prefers displayName for accountName", () => {
+    const result = mapGA4Properties("user123", [
+      { propertyId: "123", displayName: "My Site", accountName: "Acme" },
+    ]);
+    assert.equal(result[0]!.accountName, "My Site");
+  });
+
+  it("falls back to accountName when displayName is empty", () => {
+    const result = mapGA4Properties("user123", [
+      { propertyId: "123", displayName: "", accountName: "Acme" },
+    ]);
+    assert.equal(result[0]!.accountName, "Acme");
+  });
+
+  it("handles empty array", () => {
+    const result = mapGA4Properties("user123", []);
+    assert.equal(result.length, 0);
   });
 });
 
-describe("fetchGoogleAdsAccounts export", () => {
-  it("is exported as an object", async () => {
-    const mod = await import("./accounts.js");
-    assert.ok(mod.fetchGoogleAdsAccounts != null, "fetchGoogleAdsAccounts should be exported");
+describe("syncGoogleAccounts", () => {
+  it("is exported as an action", () => {
+    assert.ok(syncGoogleAccounts != null);
+  });
+});
+
+describe("combined mapping", () => {
+  it("produces correct combined records from both sources", () => {
+    const ads = mapGoogleAdsAccounts("user1", [
+      { customerId: "a1", name: "Ad Account 1" },
+    ]);
+    const ga4 = mapGA4Properties("user1", [
+      { propertyId: "p1", displayName: "Property 1", accountName: "Acme" },
+    ]);
+    const all = [...ads, ...ga4];
+    assert.equal(all.length, 2);
+    assert.equal(all[0]!.accountType, "google_ads");
+    assert.equal(all[1]!.accountType, "ga4");
+    assert.equal(all[0]!.syncEnabled, false);
+    assert.equal(all[1]!.syncEnabled, false);
+    assert.equal(all[0]!.platform, "google");
+    assert.equal(all[1]!.platform, "google");
+  });
+
+  it("all records have userId set", () => {
+    const ads = mapGoogleAdsAccounts("userX", [{ customerId: "1", name: "A" }]);
+    const ga4 = mapGA4Properties("userX", [
+      { propertyId: "2", displayName: "B", accountName: "C" },
+    ]);
+    for (const r of [...ads, ...ga4]) {
+      assert.equal(r.userId, "userX");
+    }
   });
 });

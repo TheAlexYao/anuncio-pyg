@@ -181,3 +181,94 @@ export const fetchGoogleAdsAccounts = internalAction({
     return accounts;
   },
 });
+
+/**
+ * Map Google Ads accounts to connected_accounts records.
+ */
+export function mapGoogleAdsAccounts(
+  userId: string,
+  accounts: { customerId: string; name: string }[]
+): {
+  userId: string;
+  platform: "google";
+  platformAccountId: string;
+  accountName: string;
+  accountType: string;
+  syncEnabled: boolean;
+}[] {
+  return accounts.map((a) => ({
+    userId: userId as any,
+    platform: "google" as const,
+    platformAccountId: a.customerId,
+    accountName: a.name,
+    accountType: "google_ads",
+    syncEnabled: false,
+  }));
+}
+
+/**
+ * Map GA4 properties to connected_accounts records.
+ */
+export function mapGA4Properties(
+  userId: string,
+  properties: { propertyId: string; displayName: string; accountName: string }[]
+): {
+  userId: string;
+  platform: "google";
+  platformAccountId: string;
+  accountName: string;
+  accountType: string;
+  syncEnabled: boolean;
+}[] {
+  return properties.map((p) => ({
+    userId: userId as any,
+    platform: "google" as const,
+    platformAccountId: p.propertyId,
+    accountName: p.displayName || p.accountName,
+    accountType: "ga4",
+    syncEnabled: false,
+  }));
+}
+
+/**
+ * Composite action: fetch both Google Ads and GA4 accounts after OAuth,
+ * then store them all as connected_accounts.
+ */
+export const syncGoogleAccounts = internalAction({
+  args: {
+    userId: v.id("users"),
+    userAuthId: v.id("user_auth"),
+  },
+  handler: async (ctx, args) => {
+    // Fetch both account types in parallel
+    const [adsAccounts, ga4Properties] = await Promise.all([
+      ctx.runAction(internal.google.accounts.fetchGoogleAdsAccounts, {
+        userAuthId: args.userAuthId,
+      }),
+      ctx.runAction(internal.google.accounts.fetchGA4Properties, {
+        userAuthId: args.userAuthId,
+      }),
+    ]);
+
+    // Map to connected_accounts records
+    const adsRecords = mapGoogleAdsAccounts(args.userId, adsAccounts);
+    const ga4Records = mapGA4Properties(args.userId, ga4Properties);
+    const allRecords = [...adsRecords, ...ga4Records];
+
+    if (allRecords.length === 0) {
+      return { adsCount: 0, ga4Count: 0, totalStored: 0 };
+    }
+
+    // Store all accounts
+    await ctx.runMutation(
+      (internal as any).auth.connectedAccounts.bulkStoreAccounts,
+      { accounts: allRecords }
+    );
+
+    return {
+      adsCount: adsRecords.length,
+      ga4Count: ga4Records.length,
+      totalStored: allRecords.length,
+    };
+  },
+});
