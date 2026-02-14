@@ -64,6 +64,7 @@ export const exchangeCodeForTokens = internalAction({
     tenantId: v.id("tenants"),
     brandId: v.optional(v.id("brands")),
   },
+  returns: v.null(),
   handler: async (ctx, args): Promise<string> => {
     const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
     if (!encryptionKey) {

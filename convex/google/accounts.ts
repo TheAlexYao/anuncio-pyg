@@ -100,6 +100,7 @@ export const fetchGA4Properties = internalAction({
   args: {
     userAuthId: v.id("user_auth"),
   },
+  returns: v.array(v.object({ propertyId: v.string(), displayName: v.string() })),
   handler: async (
     ctx,
     args
@@ -131,6 +132,7 @@ export const fetchGoogleAdsAccounts = internalAction({
   args: {
     userAuthId: v.id("user_auth"),
   },
+  returns: v.array(v.object({ customerId: v.string(), descriptiveName: v.optional(v.string()), currencyCode: v.optional(v.string()), timeZone: v.optional(v.string()) })),
   handler: async (ctx, args): Promise<{ customerId: string; name: string }[]> => {
     const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
     if (!developerToken) {
@@ -186,10 +188,14 @@ export const fetchGoogleAdsAccounts = internalAction({
  * Map Google Ads accounts to connected_accounts records.
  */
 export function mapGoogleAdsAccounts(
-  userId: string,
-  accounts: { customerId: string; name: string }[]
+  tenantId: string,
+  userAuthId: string,
+  accounts: { customerId: string; name: string }[],
+  brandId?: string
 ): {
-  userId: string;
+  tenantId: string;
+  brandId?: string;
+  userAuthId: string;
   platform: "google";
   platformAccountId: string;
   accountName: string;
@@ -197,7 +203,9 @@ export function mapGoogleAdsAccounts(
   syncEnabled: boolean;
 }[] {
   return accounts.map((a) => ({
-    userId: userId as any,
+    tenantId,
+    brandId,
+    userAuthId,
     platform: "google" as const,
     platformAccountId: a.customerId,
     accountName: a.name,
@@ -210,10 +218,14 @@ export function mapGoogleAdsAccounts(
  * Map GA4 properties to connected_accounts records.
  */
 export function mapGA4Properties(
-  userId: string,
-  properties: { propertyId: string; displayName: string; accountName: string }[]
+  tenantId: string,
+  userAuthId: string,
+  properties: { propertyId: string; displayName: string; accountName: string }[],
+  brandId?: string
 ): {
-  userId: string;
+  tenantId: string;
+  brandId?: string;
+  userAuthId: string;
   platform: "google";
   platformAccountId: string;
   accountName: string;
@@ -221,7 +233,9 @@ export function mapGA4Properties(
   syncEnabled: boolean;
 }[] {
   return properties.map((p) => ({
-    userId: userId as any,
+    tenantId,
+    brandId,
+    userAuthId,
     platform: "google" as const,
     platformAccountId: p.propertyId,
     accountName: p.displayName || p.accountName,
@@ -236,9 +250,11 @@ export function mapGA4Properties(
  */
 export const syncGoogleAccounts = internalAction({
   args: {
-    userId: v.id("users"),
+    tenantId: v.id("tenants"),
+    brandId: v.optional(v.id("brands")),
     userAuthId: v.id("user_auth"),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     // Fetch both account types in parallel
     const [adsAccounts, ga4Properties] = await Promise.all([
@@ -251,8 +267,18 @@ export const syncGoogleAccounts = internalAction({
     ]);
 
     // Map to connected_accounts records
-    const adsRecords = mapGoogleAdsAccounts(args.userId, adsAccounts);
-    const ga4Records = mapGA4Properties(args.userId, ga4Properties);
+    const adsRecords = mapGoogleAdsAccounts(
+      args.tenantId,
+      args.userAuthId,
+      adsAccounts,
+      args.brandId
+    );
+    const ga4Records = mapGA4Properties(
+      args.tenantId,
+      args.userAuthId,
+      ga4Properties,
+      args.brandId
+    );
     const allRecords = [...adsRecords, ...ga4Records];
 
     if (allRecords.length === 0) {

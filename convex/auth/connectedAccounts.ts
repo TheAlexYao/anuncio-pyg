@@ -9,17 +9,22 @@ const platformValidator = v.union(
 
 export const storeAccount = internalMutation({
   args: {
-    userId: v.id("users"),
+    tenantId: v.id("tenants"),
+    brandId: v.optional(v.id("brands")),
+    userAuthId: v.id("user_auth"),
     platform: platformValidator,
     platformAccountId: v.string(),
     accountName: v.string(),
     accountType: v.string(),
     syncEnabled: v.boolean(),
   },
+  returns: v.id("connected_accounts"),
   handler: async (ctx, args) => {
     const now = Date.now();
     return await ctx.db.insert("connected_accounts", {
-      userId: args.userId,
+      tenantId: args.tenantId,
+      brandId: args.brandId,
+      userAuthId: args.userAuthId,
       platform: args.platform,
       platformAccountId: args.platformAccountId,
       accountName: args.accountName,
@@ -34,7 +39,9 @@ export const bulkStoreAccounts = internalMutation({
   args: {
     accounts: v.array(
       v.object({
-        userId: v.id("users"),
+        tenantId: v.id("tenants"),
+        brandId: v.optional(v.id("brands")),
+        userAuthId: v.id("user_auth"),
         platform: platformValidator,
         platformAccountId: v.string(),
         accountName: v.string(),
@@ -48,7 +55,9 @@ export const bulkStoreAccounts = internalMutation({
     const ids = [];
     for (const account of args.accounts) {
       const id = await ctx.db.insert("connected_accounts", {
-        userId: account.userId,
+        tenantId: account.tenantId,
+        brandId: account.brandId,
+        userAuthId: account.userAuthId,
         platform: account.platform,
         platformAccountId: account.platformAccountId,
         accountName: account.accountName,
@@ -67,6 +76,7 @@ export const toggleSync = internalMutation({
     id: v.id("connected_accounts"),
     syncEnabled: v.boolean(),
   },
+  returns: v.array(v.id("connected_accounts")),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.id, {
       syncEnabled: args.syncEnabled,
@@ -74,29 +84,46 @@ export const toggleSync = internalMutation({
   },
 });
 
-export const listByUser = internalQuery({
+export const listByTenant = internalQuery({
   args: {
-    userId: v.id("users"),
+    tenantId: v.id("tenants"),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("connected_accounts")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
       .collect();
   },
 });
 
-export const listByUserPlatform = internalQuery({
+export const listByTenantPlatform = internalQuery({
   args: {
-    userId: v.id("users"),
+    tenantId: v.id("tenants"),
+    brandId: v.optional(v.id("brands")),
     platform: platformValidator,
   },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    return await ctx.db
+    if (args.brandId) {
+      return await ctx.db
+        .query("connected_accounts")
+        .withIndex("by_tenant_brand_platform", (q) =>
+          q
+            .eq("tenantId", args.tenantId)
+            .eq("brandId", args.brandId)
+            .eq("platform", args.platform)
+        )
+        .collect();
+    }
+
+    const records = await ctx.db
       .query("connected_accounts")
-      .withIndex("by_user_platform", (q) =>
-        q.eq("userId", args.userId).eq("platform", args.platform)
+      .withIndex("by_tenant_platform", (q) =>
+        q.eq("tenantId", args.tenantId).eq("platform", args.platform)
       )
       .collect();
+
+    return records.filter((record) => record.brandId === undefined);
   },
 });

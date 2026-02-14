@@ -3,7 +3,8 @@ import { internalMutation, internalQuery } from "../_generated/server";
 
 export const storeTokens = internalMutation({
   args: {
-    userId: v.id("users"),
+    tenantId: v.id("tenants"),
+    brandId: v.optional(v.id("brands")),
     platform: v.union(
       v.literal("google"),
       v.literal("meta"),
@@ -14,13 +15,26 @@ export const storeTokens = internalMutation({
     tokenExpiresAt: v.number(),
     scopes: v.array(v.string()),
   },
+  returns: v.id("user_auth"),
   handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("user_auth")
-      .withIndex("by_user_platform", (q) =>
-        q.eq("userId", args.userId).eq("platform", args.platform)
-      )
-      .unique();
+    const existing = args.brandId
+      ? await ctx.db
+          .query("user_auth")
+          .withIndex("by_tenant_brand_platform", (q) =>
+            q
+              .eq("tenantId", args.tenantId)
+              .eq("brandId", args.brandId)
+              .eq("platform", args.platform)
+          )
+          .unique()
+      : (
+          await ctx.db
+            .query("user_auth")
+            .withIndex("by_tenant_platform", (q) =>
+              q.eq("tenantId", args.tenantId).eq("platform", args.platform)
+            )
+            .collect()
+        ).find((record) => record.brandId === undefined);
 
     const now = Date.now();
 
@@ -36,7 +50,8 @@ export const storeTokens = internalMutation({
     }
 
     return await ctx.db.insert("user_auth", {
-      userId: args.userId,
+      tenantId: args.tenantId,
+      brandId: args.brandId,
       platform: args.platform,
       encryptedAccessToken: args.encryptedAccessToken,
       encryptedRefreshToken: args.encryptedRefreshToken,
@@ -54,6 +69,7 @@ export const updateTokens = internalMutation({
     encryptedAccessToken: v.string(),
     tokenExpiresAt: v.number(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.id, {
       encryptedAccessToken: args.encryptedAccessToken,
@@ -67,6 +83,7 @@ export const getTokensById = internalQuery({
   args: {
     id: v.id("user_auth"),
   },
+  returns: v.union(v.null(), v.object({ _id: v.id("user_auth"), encryptedAccessToken: v.string(), encryptedRefreshToken: v.optional(v.string()), tokenExpiresAt: v.number() })),
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
   },
@@ -74,19 +91,34 @@ export const getTokensById = internalQuery({
 
 export const getTokens = internalQuery({
   args: {
-    userId: v.id("users"),
+    tenantId: v.id("tenants"),
+    brandId: v.optional(v.id("brands")),
     platform: v.union(
       v.literal("google"),
       v.literal("meta"),
       v.literal("tiktok")
     ),
   },
+  returns: v.union(v.null(), v.object({ _id: v.id("user_auth"), encryptedAccessToken: v.string(), encryptedRefreshToken: v.optional(v.string()), tokenExpiresAt: v.number() })),
   handler: async (ctx, args) => {
-    return await ctx.db
+    if (args.brandId) {
+      return await ctx.db
+        .query("user_auth")
+        .withIndex("by_tenant_brand_platform", (q) =>
+          q
+            .eq("tenantId", args.tenantId)
+            .eq("brandId", args.brandId)
+            .eq("platform", args.platform)
+        )
+        .unique();
+    }
+
+    const records = await ctx.db
       .query("user_auth")
-      .withIndex("by_user_platform", (q) =>
-        q.eq("userId", args.userId).eq("platform", args.platform)
+      .withIndex("by_tenant_platform", (q) =>
+        q.eq("tenantId", args.tenantId).eq("platform", args.platform)
       )
-      .unique();
+      .collect();
+    return records.find((record) => record.brandId === undefined) ?? null;
   },
 });

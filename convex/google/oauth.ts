@@ -18,6 +18,7 @@ export const generateAuthUrl = action({
   args: {
     state: v.string(),
   },
+  returns: v.string(),
   handler: async (_ctx, args): Promise<string> => {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) {
@@ -101,6 +102,7 @@ export const refreshAccessToken = internalAction({
   args: {
     userAuthId: v.id("user_auth"),
   },
+  returns: v.null(),
   handler: async (ctx, args): Promise<void> => {
     const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
     if (!encryptionKey) {
@@ -158,6 +160,7 @@ export const getValidAccessToken = internalAction({
   args: {
     userAuthId: v.id("user_auth"),
   },
+  returns: v.string(),
   handler: async (ctx, args): Promise<string> => {
     const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
     if (!encryptionKey) {
