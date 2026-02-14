@@ -9,3 +9,15 @@
 - Files: convex/lib/ga4Client.ts, convex/lib/ga4Client.test.ts
 - **Learnings:** GA4 Data API returns dimension/metric values as string arrays in order matching request; pure helper extraction pattern continues to work well
 ---
+
+## 2026-02-14 01:02 - US-013: Add public queries and mutations for frontend account management
+- Created convex/accounts.ts with 3 exports:
+  - `listConnectedAccounts` query: returns connected_accounts for tenant (strips encrypted fields)
+  - `toggleAccountSync` mutation: toggles syncEnabled, verifies account belongs to tenant
+  - `getConnectionStatus` query: returns {connected: boolean} based on user_auth google record
+- All use v validators for args, query by tenantId (schema pattern, not userId)
+- Created convex/accounts.test.ts with 5 tests: export existence (3), export count, distinctness
+- All 5 tests pass, typecheck clean
+- Files: convex/accounts.ts, convex/accounts.test.ts
+- **Learnings:** Convex query/mutation exports are functions (typeof === 'function'), not objects
+---
