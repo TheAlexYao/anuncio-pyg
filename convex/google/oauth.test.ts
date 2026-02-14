@@ -28,7 +28,7 @@ function buildAuthUrl(clientId: string, redirectUri: string, state: string): str
 describe("Google OAuth generateAuthUrl", () => {
   const MOCK_CLIENT_ID = "test-client-id-123.apps.googleusercontent.com";
   const MOCK_REDIRECT_URI = "https://myapp.convex.site/google/callback";
-  const MOCK_STATE = JSON.stringify({ userId: "user_abc123" });
+  const MOCK_STATE = JSON.stringify({ tenantId: "tenant_abc123" });
 
   it("should return a URL starting with the Google auth endpoint", () => {
     const url = buildAuthUrl(MOCK_CLIENT_ID, MOCK_REDIRECT_URI, MOCK_STATE);
@@ -72,17 +72,17 @@ describe("Google OAuth generateAuthUrl", () => {
     assert.equal(url.searchParams.get("state"), MOCK_STATE);
   });
 
-  it("should preserve userId in state when parsed back", () => {
+  it("should preserve tenantId in state when parsed back", () => {
     const url = new URL(buildAuthUrl(MOCK_CLIENT_ID, MOCK_REDIRECT_URI, MOCK_STATE));
     const state = JSON.parse(url.searchParams.get("state")!);
-    assert.equal(state.userId, "user_abc123");
+    assert.equal(state.tenantId, "tenant_abc123");
   });
 
   it("should handle special characters in state", () => {
-    const specialState = JSON.stringify({ userId: "user/abc+123&foo=bar" });
+    const specialState = JSON.stringify({ tenantId: "tenant/abc+123&foo=bar" });
     const url = new URL(buildAuthUrl(MOCK_CLIENT_ID, MOCK_REDIRECT_URI, specialState));
     const parsed = JSON.parse(url.searchParams.get("state")!);
-    assert.equal(parsed.userId, "user/abc+123&foo=bar");
+    assert.equal(parsed.tenantId, "tenant/abc+123&foo=bar");
   });
 });
 

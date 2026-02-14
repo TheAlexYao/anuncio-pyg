@@ -4,8 +4,8 @@ import {
   storeAccount,
   bulkStoreAccounts,
   toggleSync,
-  listByUser,
-  listByUserPlatform,
+  listByTenant,
+  listByTenantPlatform,
 } from "./connectedAccounts.ts";
 
 describe("connectedAccounts exports", () => {
@@ -21,25 +21,25 @@ describe("connectedAccounts exports", () => {
     assert.equal(typeof toggleSync, "function");
   });
 
-  it("exports listByUser as a function", () => {
-    assert.equal(typeof listByUser, "function");
+  it("exports listByTenant as a function", () => {
+    assert.equal(typeof listByTenant, "function");
   });
 
-  it("exports listByUserPlatform as a function", () => {
-    assert.equal(typeof listByUserPlatform, "function");
+  it("exports listByTenantPlatform as a function", () => {
+    assert.equal(typeof listByTenantPlatform, "function");
   });
 
   it("all exports are distinct", () => {
-    const exports = [storeAccount, bulkStoreAccounts, toggleSync, listByUser, listByUserPlatform];
+    const exports = [storeAccount, bulkStoreAccounts, toggleSync, listByTenant, listByTenantPlatform];
     const unique = new Set(exports);
     assert.equal(unique.size, exports.length);
   });
 
   it("exports exactly 5 named functions", () => {
     // Verify we have the complete API surface
-    const names = ["storeAccount", "bulkStoreAccounts", "toggleSync", "listByUser", "listByUserPlatform"];
+    const names = ["storeAccount", "bulkStoreAccounts", "toggleSync", "listByTenant", "listByTenantPlatform"];
     for (const name of names) {
-      const mod = { storeAccount, bulkStoreAccounts, toggleSync, listByUser, listByUserPlatform };
+      const mod = { storeAccount, bulkStoreAccounts, toggleSync, listByTenant, listByTenantPlatform };
       assert.notEqual((mod as Record<string, unknown>)[name], undefined, `${name} should be exported`);
     }
   });

@@ -21,9 +21,9 @@ export default defineSchema({
   tasks: defineTable({
     text: v.string(),
     isCompleted: v.boolean(),
-    userId: v.id("users"),
+    tenantId: v.id("tenants"),
   })
-    .index("by_user", ["userId"])
+    .index("by_tenant", ["tenantId"])
     .index("by_completed", ["isCompleted"]),
 });
 ```
@@ -55,11 +55,11 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 
 export const list = query({
-  args: { userId: v.id("users") },
+  args: { tenantId: v.id("tenants") },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("tasks")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
       .collect();
   },
 });

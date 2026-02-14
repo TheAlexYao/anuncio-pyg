@@ -1,9 +1,9 @@
 
 ## 2026-02-12 22:50 - US-003: Add internal mutations for storing and updating OAuth tokens
 - Created convex/auth/tokens.ts with storeTokens (internalMutation), updateTokens (internalMutation), getTokens (internalQuery)
-- storeTokens: upserts user_auth by userId+platform, accepts all required fields
+- storeTokens: upserts user_auth by tenantId+brandId+platform, accepts all required fields
 - updateTokens: patches encryptedAccessToken and tokenExpiresAt on existing record
-- getTokens: fetches user_auth by userId and platform using by_user_platform index
+- getTokens: fetches user_auth by tenantId/brandId and platform using tenant-scoped indexes
 - All functions use v validators
 - Created convex/auth/tokens.test.ts with 11 tests: export checks, distinctness, args validation
 - All 11 tests pass
@@ -44,4 +44,62 @@
 - All 13 tests pass, typecheck clean, Convex build clean
 - Files: convex/google/exchangeCode.ts, convex/google/exchangeCode.test.ts
 - **Learnings:** This story was already fully implemented in US-008's commit — callback endpoint needed the exchange action
+---
+
+## 2026-02-13 21:29 - US-009: Build action to fetch Google Ads accessible customer accounts
+- Created convex/google/accounts.ts with fetchGoogleAdsAccounts internalAction
+- Action calls getValidAccessToken to get fresh token, then listAccessibleCustomers endpoint
+- For each customer resource name, fetches customer details to get descriptive name
+- Returns array of {customerId, name}
+- Exported pure helpers: buildGoogleAdsHeaders, parseAccessibleCustomersResponse, extractCustomerId, parseCustomerDetails
+- Created convex/google/accounts.test.ts with 15 tests: header building (3), response parsing (4), ID extraction (2), customer details parsing (5), export check (1)
+- All 15 tests pass, Convex build clean
+- Files: convex/google/accounts.ts, convex/google/accounts.test.ts
+- **Learnings:** Google Ads listAccessibleCustomers returns resourceNames array like "customers/123"; separate detail call needed per customer for descriptive name
+---
+
+## 2026-02-13 21:35 - US-010: Build action to fetch GA4 properties
+- Added parseGA4AccountSummaries pure helper to convex/google/accounts.ts
+- Added fetchGA4Properties internalAction that uses getValidAccessToken, calls GA4 Admin API accountSummaries endpoint
+- Returns array of {propertyId, displayName, accountName} extracted from nested account/property summaries
+- Created convex/google/ga4.test.ts with 11 tests: multi-account parsing, null/empty/invalid inputs, missing fields, null entries in arrays, export check
+- All 11 tests pass, all 15 existing accounts tests still pass, convex deploy clean
+- Files: convex/google/accounts.ts, convex/google/ga4.test.ts
+- **Learnings:** GA4 Admin API accountSummaries nests properties inside accounts — need to flatten; same pure-helper extraction pattern works well
+---
+
+## 2026-02-13 21:54 - US-011: Build composite action to fetch and store all Google accounts after OAuth
+- Added syncGoogleAccounts internalAction to convex/google/accounts.ts
+- Calls fetchGoogleAdsAccounts and fetchGA4Properties in parallel via Promise.all
+- mapGoogleAdsAccounts maps ads accounts to connected_accounts with accountType='google_ads'
+- mapGA4Properties maps GA4 properties to connected_accounts with accountType='ga4'
+- All records have syncEnabled=false, platform='google'
+- Calls bulkStoreAccounts to persist all records
+- Returns { adsCount, ga4Count, totalStored }
+- Created convex/google/accounts.test.ts with 16 tests: mapping (6+7), export check (1), combined (2)
+- All 16 tests pass, Convex build clean
+- Files: convex/google/accounts.ts, convex/google/accounts.test.ts
+- **Learnings:** Pure mapping functions exported separately enable thorough testing of composite actions without mocking Convex runtime
+---
+
+## 2026-02-13 22:54 - US-012: Wire OAuth callback to trigger account sync after token storage
+- Updated exchangeCodeForTokens to return userAuthId from storeTokens
+- Updated HTTP callback in convex/http.ts to schedule syncGoogleAccounts via ctx.scheduler.runAfter(0, ...) after token exchange
+- Updated buildRedirectUrl to accept optional syncing param, success redirect now includes syncing=true
+- Callback still returns 302 immediately (sync runs in background)
+- Added 4 new tests to convex/http.test.ts for syncing param behavior
+- All 18 tests pass, Convex build passes
+- Files: convex/http.ts, convex/http.test.ts, convex/google/exchangeCode.ts
+- **Learnings:** ctx.scheduler.runAfter(0, ...) is the Convex pattern for fire-and-forget background work from httpActions
+---
+
+## 2026-02-13 23:53 - US-012: Wire OAuth callback to trigger account sync after token storage
+- Fixed return validator mismatches flagged by verifier:
+  - convex/google/exchangeCode.ts: changed `returns: v.null()` to `returns: v.string()` (handler returns userAuthId)
+  - convex/auth/connectedAccounts.ts: removed incorrect return validators from toggleSync and listByTenant
+  - convex/google/accounts.ts: fixed fetchGoogleAdsAccounts return validator shape, added accountName to fetchGA4Properties validator, removed return value from syncGoogleAccounts (void action)
+- OAuth callback already correctly: schedules syncGoogleAccounts via scheduler.runAfter(0), returns 302 with syncing=true param
+- All 54 tests pass, typecheck clean (only pre-existing errors)
+- Files changed: convex/google/exchangeCode.ts, convex/auth/connectedAccounts.ts, convex/google/accounts.ts
+- **Learnings:** Convex return validators must exactly match handler return types — v.null() means handler must return void/undefined, not an object or string
 ---

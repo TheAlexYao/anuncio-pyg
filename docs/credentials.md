@@ -52,7 +52,9 @@ npx convex env set ENCRYPTION_KEY "the-generated-key"
 ```ts
 // convex/schema.ts
 connectedAccounts: defineTable({
-  userId: v.id("users"),
+  tenantId: v.id("tenants"),
+  brandId: v.optional(v.id("brands")),
+  userAuthId: v.id("user_auth"),
   platform: v.union(v.literal("meta"), v.literal("google"), v.literal("tiktok")),
   platformAccountId: v.string(),
   accountName: v.string(),
@@ -62,8 +64,9 @@ connectedAccounts: defineTable({
   scopes: v.array(v.string()),
   connectedAt: v.number(),
 })
-  .index("by_user", ["userId"])
-  .index("by_user_platform", ["userId", "platform"])
+  .index("by_tenant", ["tenantId"])
+  .index("by_tenant_platform", ["tenantId", "platform"])
+  .index("by_tenant_brand_platform", ["tenantId", "brandId", "platform"])
   .index("by_platform_account", ["platform", "platformAccountId"]),
 ```
 
