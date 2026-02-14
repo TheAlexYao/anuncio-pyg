@@ -37,10 +37,29 @@ describe("mapMetaCampaign", () => {
         spend: "123.45",
         impressions: "1000",
         clicks: "50",
+        frequency: "1.2",
+        unique_clicks: "40",
+        unique_ctr: "4.0",
+        video_play_actions: [{ action_type: "video_view", value: "30" }],
+        video_p25_watched_actions: [{ action_type: "video_view", value: "20" }],
+        video_p50_watched_actions: [{ action_type: "video_view", value: "15" }],
+        video_p75_watched_actions: [{ action_type: "video_view", value: "9" }],
+        video_p100_watched_actions: [{ action_type: "video_view", value: "3" }],
+        cost_per_action_type: [
+          { action_type: "lead", value: "12.5" },
+          { action_type: "purchase", value: "25.75" },
+        ],
+        quality_ranking: "ABOVE_AVERAGE",
+        engagement_rate_ranking: "AVERAGE",
+        conversion_rate_ranking: "LOW",
+        inline_post_engagement: "99",
         actions: [
           { action_type: "lead", value: "4" },
           { action_type: "purchase", value: "2" },
           { action_type: "message_contacts_new", value: "3" },
+          { action_type: "post_reaction", value: "6" },
+          { action_type: "comment", value: "2" },
+          { action_type: "post", value: "1" },
         ],
       })
     );
@@ -51,6 +70,22 @@ describe("mapMetaCampaign", () => {
     assert.equal(result.spend, 123.45);
     assert.equal(result.leads, 7);
     assert.equal(result.conversions, 2);
+    assert.equal(result.frequency, 1.2);
+    assert.equal(result.uniqueClicks, 40);
+    assert.equal(result.uniqueCtr, 4);
+    assert.equal(result.videoViews, 30);
+    assert.equal(result.videoP25, 20);
+    assert.equal(result.videoP50, 15);
+    assert.equal(result.videoP75, 9);
+    assert.equal(result.videoP100, 3);
+    assert.equal(result.costPerLead, 12.5);
+    assert.equal(result.costPerConversion, 25.75);
+    assert.equal(result.qualityRanking, "ABOVE_AVERAGE");
+    assert.equal(result.engagementRateRanking, "AVERAGE");
+    assert.equal(result.conversionRateRanking, "LOW");
+    assert.equal(result.likes, 6);
+    assert.equal(result.comments, 2);
+    assert.equal(result.shares, 1);
     assert.equal(result.campaignStatus, "deleted");
     assert.equal(result.syncedAt, 1_700_000_000_000);
   });
@@ -69,6 +104,18 @@ describe("mapMetaAdSet", () => {
       spend: "50.5",
       impressions: "400",
       clicks: "20",
+      frequency: "2.0",
+      unique_clicks: "18",
+      unique_ctr: "4.5",
+      video_p25_watched_actions: [{ action_type: "video_view", value: "8" }],
+      video_p50_watched_actions: [{ action_type: "video_view", value: "6" }],
+      video_p75_watched_actions: [{ action_type: "video_view", value: "4" }],
+      video_p100_watched_actions: [{ action_type: "video_view", value: "2" }],
+      cost_per_action_type: [{ action_type: "purchase", value: "9.1" }],
+      quality_ranking: "AVERAGE",
+      engagement_rate_ranking: "ABOVE_AVERAGE",
+      conversion_rate_ranking: "LOW",
+      inline_post_engagement: "11",
       actions: [{ action_type: "purchase", value: "1" }],
     });
 
@@ -78,6 +125,20 @@ describe("mapMetaAdSet", () => {
     assert.equal(result.adSetStatus, "active");
     assert.equal(result.conversions, 1);
     assert.equal(result.spend, 50.5);
+    assert.equal(result.frequency, 2);
+    assert.equal(result.uniqueClicks, 18);
+    assert.equal(result.uniqueCtr, 4.5);
+    assert.equal(result.videoP25, 8);
+    assert.equal(result.videoP50, 6);
+    assert.equal(result.videoP75, 4);
+    assert.equal(result.videoP100, 2);
+    assert.equal(result.costPerConversion, 9.1);
+    assert.equal(result.qualityRanking, "AVERAGE");
+    assert.equal(result.engagementRateRanking, "ABOVE_AVERAGE");
+    assert.equal(result.conversionRateRanking, "LOW");
+    assert.equal(result.likes, 11);
+    assert.equal(result.comments, 11);
+    assert.equal(result.shares, 11);
   });
 });
 
@@ -95,6 +156,23 @@ describe("mapMetaAd", () => {
       spend: "12.2",
       impressions: "100",
       clicks: "4",
+      frequency: "1.8",
+      unique_clicks: "3",
+      unique_ctr: "3.0",
+      video_p25_watched_actions: [{ action_type: "video_view", value: "3" }],
+      video_p50_watched_actions: [{ action_type: "video_view", value: "2" }],
+      video_p75_watched_actions: [{ action_type: "video_view", value: "1" }],
+      video_p100_watched_actions: [{ action_type: "video_view", value: "1" }],
+      cost_per_action_type: [{ action_type: "lead", value: "6.5" }],
+      quality_ranking: "LOW",
+      engagement_rate_ranking: "AVERAGE",
+      conversion_rate_ranking: "ABOVE_AVERAGE",
+      creative: {
+        thumbnail_url: "https://cdn.example.com/thumb.jpg",
+        title: "Big Sale",
+        body: "Shop now",
+      },
+      preview_shareable_link: "https://facebook.com/preview/123",
       actions: [{ action_type: "lead", value: "2" }],
     });
 
@@ -103,6 +181,21 @@ describe("mapMetaAd", () => {
     assert.equal(result.adName, "Ad Name");
     assert.equal(result.adStatus, "paused");
     assert.equal(result.leads, 2);
+    assert.equal(result.frequency, 1.8);
+    assert.equal(result.uniqueClicks, 3);
+    assert.equal(result.uniqueCtr, 3);
+    assert.equal(result.videoP25, 3);
+    assert.equal(result.videoP50, 2);
+    assert.equal(result.videoP75, 1);
+    assert.equal(result.videoP100, 1);
+    assert.equal(result.costPerLead, 6.5);
+    assert.equal(result.qualityRanking, "LOW");
+    assert.equal(result.engagementRateRanking, "AVERAGE");
+    assert.equal(result.conversionRateRanking, "ABOVE_AVERAGE");
+    assert.equal(result.thumbnailUrl, "https://cdn.example.com/thumb.jpg");
+    assert.equal(result.headline, "Big Sale");
+    assert.equal(result.bodyText, "Shop now");
+    assert.equal(result.previewLink, "https://facebook.com/preview/123");
   });
 });
 

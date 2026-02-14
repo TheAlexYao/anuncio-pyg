@@ -27,6 +27,21 @@ export type CampaignDailyFields = {
   leads?: number;
   reach?: number;
   videoViews?: number;
+  frequency?: number;
+  uniqueClicks?: number;
+  uniqueCtr?: number;
+  videoP25?: number;
+  videoP50?: number;
+  videoP75?: number;
+  videoP100?: number;
+  costPerLead?: number;
+  costPerConversion?: number;
+  qualityRanking?: string;
+  engagementRateRanking?: string;
+  conversionRateRanking?: string;
+  likes?: number;
+  comments?: number;
+  shares?: number;
   ctr?: number;
   cpc?: number;
   cpm?: number;
@@ -50,6 +65,21 @@ export type AdSetDailyFields = {
   conversions?: number;
   leads?: number;
   reach?: number;
+  frequency?: number;
+  uniqueClicks?: number;
+  uniqueCtr?: number;
+  videoP25?: number;
+  videoP50?: number;
+  videoP75?: number;
+  videoP100?: number;
+  costPerLead?: number;
+  costPerConversion?: number;
+  qualityRanking?: string;
+  engagementRateRanking?: string;
+  conversionRateRanking?: string;
+  likes?: number;
+  comments?: number;
+  shares?: number;
   ctr?: number;
   cpc?: number;
   cpm?: number;
@@ -74,6 +104,25 @@ export type AdDailyFields = {
   conversions?: number;
   leads?: number;
   reach?: number;
+  frequency?: number;
+  uniqueClicks?: number;
+  uniqueCtr?: number;
+  videoP25?: number;
+  videoP50?: number;
+  videoP75?: number;
+  videoP100?: number;
+  costPerLead?: number;
+  costPerConversion?: number;
+  qualityRanking?: string;
+  engagementRateRanking?: string;
+  conversionRateRanking?: string;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  thumbnailUrl?: string;
+  headline?: string;
+  bodyText?: string;
+  previewLink?: string;
   ctr?: number;
   cpc?: number;
   cpm?: number;
@@ -141,6 +190,59 @@ export function mapMetaCampaign(raw: unknown): CampaignDailyFields {
   const actions = parseMetaActions(read(record, ["actions", ["metrics", "actions"]]));
   const actionLeads = actions.leads + actions.messageContactsNew;
   const fallbackLeads = readOptionalNumber(record, ["leads", ["metrics", "leads"]]);
+  const costPerActions = parseMetaCostPerActionType(
+    read(record, ["cost_per_action_type", ["metrics", "cost_per_action_type"]])
+  );
+  const inlinePostEngagement = readOptionalNumber(record, [
+    "inline_post_engagement",
+    ["metrics", "inline_post_engagement"],
+  ]);
+  const videoViews =
+    readMetaActionMetricValue(
+      read(record, ["video_play_actions", ["metrics", "video_play_actions"]])
+    ) ??
+    readOptionalNumber(record, [
+      "video_views",
+      "videoViews",
+      ["metrics", "video_views"],
+      ["metrics", "videoViews"],
+    ]);
+  const videoP25 = readMetaActionMetricValue(
+    read(record, [
+      "video_p25_watched_actions",
+      ["metrics", "video_p25_watched_actions"],
+      "video_p25",
+      "videoP25",
+      ["metrics", "videoP25"],
+    ])
+  );
+  const videoP50 = readMetaActionMetricValue(
+    read(record, [
+      "video_p50_watched_actions",
+      ["metrics", "video_p50_watched_actions"],
+      "video_p50",
+      "videoP50",
+      ["metrics", "videoP50"],
+    ])
+  );
+  const videoP75 = readMetaActionMetricValue(
+    read(record, [
+      "video_p75_watched_actions",
+      ["metrics", "video_p75_watched_actions"],
+      "video_p75",
+      "videoP75",
+      ["metrics", "videoP75"],
+    ])
+  );
+  const videoP100 = readMetaActionMetricValue(
+    read(record, [
+      "video_p100_watched_actions",
+      ["metrics", "video_p100_watched_actions"],
+      "video_p100",
+      "videoP100",
+      ["metrics", "videoP100"],
+    ])
+  );
 
   return {
     platform: "meta",
@@ -160,7 +262,44 @@ export function mapMetaCampaign(raw: unknown): CampaignDailyFields {
     conversions: actions.purchases || readOptionalNumber(record, ["conversions", ["metrics", "conversions"]]),
     leads: actionLeads || fallbackLeads,
     reach: readOptionalNumber(record, ["reach", ["metrics", "reach"]]),
-    videoViews: readOptionalNumber(record, ["video_views", "videoViews", ["metrics", "videoViews"]]),
+    videoViews,
+    frequency: readOptionalNumber(record, ["frequency", ["metrics", "frequency"]]),
+    uniqueClicks: readOptionalNumber(record, [
+      "unique_clicks",
+      "uniqueClicks",
+      ["metrics", "unique_clicks"],
+      ["metrics", "uniqueClicks"],
+    ]),
+    uniqueCtr: readOptionalNumber(record, [
+      "unique_ctr",
+      "uniqueCtr",
+      ["metrics", "unique_ctr"],
+      ["metrics", "uniqueCtr"],
+    ]),
+    videoP25,
+    videoP50,
+    videoP75,
+    videoP100,
+    costPerLead: costPerActions.costPerLead,
+    costPerConversion: costPerActions.costPerConversion,
+    qualityRanking: readOptionalString(record, [
+      "quality_ranking",
+      "qualityRanking",
+      ["metrics", "quality_ranking"],
+    ]),
+    engagementRateRanking: readOptionalString(record, [
+      "engagement_rate_ranking",
+      "engagementRateRanking",
+      ["metrics", "engagement_rate_ranking"],
+    ]),
+    conversionRateRanking: readOptionalString(record, [
+      "conversion_rate_ranking",
+      "conversionRateRanking",
+      ["metrics", "conversion_rate_ranking"],
+    ]),
+    likes: actions.likes || inlinePostEngagement,
+    comments: actions.comments || inlinePostEngagement,
+    shares: actions.shares || inlinePostEngagement,
     ctr: readOptionalNumber(record, ["ctr", ["metrics", "ctr"]]),
     cpc: readOptionalNumber(record, ["cpc", ["metrics", "cpc"]]),
     cpm: readOptionalNumber(record, ["cpm", ["metrics", "cpm"]]),
@@ -182,6 +321,49 @@ export function mapMetaAdSet(raw: unknown): AdSetDailyFields {
   const actions = parseMetaActions(read(record, ["actions", ["metrics", "actions"]]));
   const actionLeads = actions.leads + actions.messageContactsNew;
   const fallbackLeads = readOptionalNumber(record, ["leads", ["metrics", "leads"]]);
+  const costPerActions = parseMetaCostPerActionType(
+    read(record, ["cost_per_action_type", ["metrics", "cost_per_action_type"]])
+  );
+  const inlinePostEngagement = readOptionalNumber(record, [
+    "inline_post_engagement",
+    ["metrics", "inline_post_engagement"],
+  ]);
+  const videoP25 = readMetaActionMetricValue(
+    read(record, [
+      "video_p25_watched_actions",
+      ["metrics", "video_p25_watched_actions"],
+      "video_p25",
+      "videoP25",
+      ["metrics", "videoP25"],
+    ])
+  );
+  const videoP50 = readMetaActionMetricValue(
+    read(record, [
+      "video_p50_watched_actions",
+      ["metrics", "video_p50_watched_actions"],
+      "video_p50",
+      "videoP50",
+      ["metrics", "videoP50"],
+    ])
+  );
+  const videoP75 = readMetaActionMetricValue(
+    read(record, [
+      "video_p75_watched_actions",
+      ["metrics", "video_p75_watched_actions"],
+      "video_p75",
+      "videoP75",
+      ["metrics", "videoP75"],
+    ])
+  );
+  const videoP100 = readMetaActionMetricValue(
+    read(record, [
+      "video_p100_watched_actions",
+      ["metrics", "video_p100_watched_actions"],
+      "video_p100",
+      "videoP100",
+      ["metrics", "videoP100"],
+    ])
+  );
 
   return {
     platform: "meta",
@@ -202,6 +384,43 @@ export function mapMetaAdSet(raw: unknown): AdSetDailyFields {
     conversions: actions.purchases || readOptionalNumber(record, ["conversions", ["metrics", "conversions"]]),
     leads: actionLeads || fallbackLeads,
     reach: readOptionalNumber(record, ["reach", ["metrics", "reach"]]),
+    frequency: readOptionalNumber(record, ["frequency", ["metrics", "frequency"]]),
+    uniqueClicks: readOptionalNumber(record, [
+      "unique_clicks",
+      "uniqueClicks",
+      ["metrics", "unique_clicks"],
+      ["metrics", "uniqueClicks"],
+    ]),
+    uniqueCtr: readOptionalNumber(record, [
+      "unique_ctr",
+      "uniqueCtr",
+      ["metrics", "unique_ctr"],
+      ["metrics", "uniqueCtr"],
+    ]),
+    videoP25,
+    videoP50,
+    videoP75,
+    videoP100,
+    costPerLead: costPerActions.costPerLead,
+    costPerConversion: costPerActions.costPerConversion,
+    qualityRanking: readOptionalString(record, [
+      "quality_ranking",
+      "qualityRanking",
+      ["metrics", "quality_ranking"],
+    ]),
+    engagementRateRanking: readOptionalString(record, [
+      "engagement_rate_ranking",
+      "engagementRateRanking",
+      ["metrics", "engagement_rate_ranking"],
+    ]),
+    conversionRateRanking: readOptionalString(record, [
+      "conversion_rate_ranking",
+      "conversionRateRanking",
+      ["metrics", "conversion_rate_ranking"],
+    ]),
+    likes: actions.likes || inlinePostEngagement,
+    comments: actions.comments || inlinePostEngagement,
+    shares: actions.shares || inlinePostEngagement,
     ctr: readOptionalNumber(record, ["ctr", ["metrics", "ctr"]]),
     cpc: readOptionalNumber(record, ["cpc", ["metrics", "cpc"]]),
     cpm: readOptionalNumber(record, ["cpm", ["metrics", "cpm"]]),
@@ -223,6 +442,49 @@ export function mapMetaAd(raw: unknown): AdDailyFields {
   const actions = parseMetaActions(read(record, ["actions", ["metrics", "actions"]]));
   const actionLeads = actions.leads + actions.messageContactsNew;
   const fallbackLeads = readOptionalNumber(record, ["leads", ["metrics", "leads"]]);
+  const costPerActions = parseMetaCostPerActionType(
+    read(record, ["cost_per_action_type", ["metrics", "cost_per_action_type"]])
+  );
+  const inlinePostEngagement = readOptionalNumber(record, [
+    "inline_post_engagement",
+    ["metrics", "inline_post_engagement"],
+  ]);
+  const videoP25 = readMetaActionMetricValue(
+    read(record, [
+      "video_p25_watched_actions",
+      ["metrics", "video_p25_watched_actions"],
+      "video_p25",
+      "videoP25",
+      ["metrics", "videoP25"],
+    ])
+  );
+  const videoP50 = readMetaActionMetricValue(
+    read(record, [
+      "video_p50_watched_actions",
+      ["metrics", "video_p50_watched_actions"],
+      "video_p50",
+      "videoP50",
+      ["metrics", "videoP50"],
+    ])
+  );
+  const videoP75 = readMetaActionMetricValue(
+    read(record, [
+      "video_p75_watched_actions",
+      ["metrics", "video_p75_watched_actions"],
+      "video_p75",
+      "videoP75",
+      ["metrics", "videoP75"],
+    ])
+  );
+  const videoP100 = readMetaActionMetricValue(
+    read(record, [
+      "video_p100_watched_actions",
+      ["metrics", "video_p100_watched_actions"],
+      "video_p100",
+      "videoP100",
+      ["metrics", "videoP100"],
+    ])
+  );
 
   return {
     platform: "meta",
@@ -241,6 +503,60 @@ export function mapMetaAd(raw: unknown): AdDailyFields {
     conversions: actions.purchases || readOptionalNumber(record, ["conversions", ["metrics", "conversions"]]),
     leads: actionLeads || fallbackLeads,
     reach: readOptionalNumber(record, ["reach", ["metrics", "reach"]]),
+    frequency: readOptionalNumber(record, ["frequency", ["metrics", "frequency"]]),
+    uniqueClicks: readOptionalNumber(record, [
+      "unique_clicks",
+      "uniqueClicks",
+      ["metrics", "unique_clicks"],
+      ["metrics", "uniqueClicks"],
+    ]),
+    uniqueCtr: readOptionalNumber(record, [
+      "unique_ctr",
+      "uniqueCtr",
+      ["metrics", "unique_ctr"],
+      ["metrics", "uniqueCtr"],
+    ]),
+    videoP25,
+    videoP50,
+    videoP75,
+    videoP100,
+    costPerLead: costPerActions.costPerLead,
+    costPerConversion: costPerActions.costPerConversion,
+    qualityRanking: readOptionalString(record, [
+      "quality_ranking",
+      "qualityRanking",
+      ["metrics", "quality_ranking"],
+    ]),
+    engagementRateRanking: readOptionalString(record, [
+      "engagement_rate_ranking",
+      "engagementRateRanking",
+      ["metrics", "engagement_rate_ranking"],
+    ]),
+    conversionRateRanking: readOptionalString(record, [
+      "conversion_rate_ranking",
+      "conversionRateRanking",
+      ["metrics", "conversion_rate_ranking"],
+    ]),
+    likes: actions.likes || inlinePostEngagement,
+    comments: actions.comments || inlinePostEngagement,
+    shares: actions.shares || inlinePostEngagement,
+    thumbnailUrl: readOptionalString(record, [
+      ["creative", "thumbnail_url"],
+      ["creative", "thumbnailUrl"],
+      "thumbnail_url",
+      "thumbnailUrl",
+    ]),
+    headline: readOptionalString(record, [["creative", "title"], "headline", "title"]),
+    bodyText: readOptionalString(record, [
+      ["creative", "body"],
+      "body_text",
+      "bodyText",
+      "body",
+    ]),
+    previewLink: readOptionalString(record, [
+      "preview_shareable_link",
+      "previewLink",
+    ]),
     ctr: readOptionalNumber(record, ["ctr", ["metrics", "ctr"]]),
     cpc: readOptionalNumber(record, ["cpc", ["metrics", "cpc"]]),
     cpm: readOptionalNumber(record, ["cpm", ["metrics", "cpm"]]),
@@ -776,18 +1092,97 @@ function normalizeResourceId(value: string): string {
   return parts[parts.length - 1] ?? trimmed;
 }
 
+function readMetaActionMetricValue(metric: unknown): number | undefined {
+  if (metric === undefined || metric === null || metric === "") return undefined;
+
+  if (Array.isArray(metric)) {
+    for (const item of metric) {
+      const itemRecord = asRecord(item);
+      const value = safeNumber(read(itemRecord, ["value", "count"]), Number.NaN);
+      if (Number.isFinite(value)) {
+        return value;
+      }
+    }
+    return undefined;
+  }
+
+  if (typeof metric === "object") {
+    const metricRecord = asRecord(metric);
+    const value = safeNumber(read(metricRecord, ["value", "count"]), Number.NaN);
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  const value = safeNumber(metric, Number.NaN);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function isMetaLeadActionType(actionType: string): boolean {
+  return (
+    actionType === "lead" ||
+    actionType.includes("fb_pixel_lead") ||
+    actionType.includes("onsite_conversion.lead") ||
+    actionType.includes("lead_grouped")
+  );
+}
+
+function isMetaMessageActionType(actionType: string): boolean {
+  return (
+    actionType.includes("message_contacts_new") ||
+    actionType.includes("messaging_conversation_started") ||
+    actionType.includes("message")
+  );
+}
+
+function parseMetaCostPerActionType(costPerActionType: unknown): {
+  costPerLead?: number;
+  costPerConversion?: number;
+} {
+  if (!Array.isArray(costPerActionType)) {
+    return {};
+  }
+
+  let costPerLead: number | undefined;
+  let costPerConversion: number | undefined;
+
+  for (const action of costPerActionType) {
+    const actionRecord = asRecord(action);
+    const actionType = safeString(
+      read(actionRecord, ["action_type", "actionType", "type"])
+    ).toLowerCase();
+    const value = readMetaActionMetricValue(read(actionRecord, ["value", "cost"]));
+    if (!actionType || value === undefined) continue;
+
+    if (costPerLead === undefined && isMetaLeadActionType(actionType)) {
+      costPerLead = value;
+      continue;
+    }
+
+    if (costPerConversion === undefined && actionType.includes("purchase")) {
+      costPerConversion = value;
+    }
+  }
+
+  return { costPerLead, costPerConversion };
+}
+
 function parseMetaActions(actions: unknown): {
   leads: number;
   purchases: number;
   messageContactsNew: number;
+  likes: number;
+  comments: number;
+  shares: number;
 } {
   if (!Array.isArray(actions)) {
-    return { leads: 0, purchases: 0, messageContactsNew: 0 };
+    return { leads: 0, purchases: 0, messageContactsNew: 0, likes: 0, comments: 0, shares: 0 };
   }
 
   let leads = 0;
   let purchases = 0;
   let messageContactsNew = 0;
+  let likes = 0;
+  let comments = 0;
+  let shares = 0;
 
   for (const action of actions) {
     const actionRecord = asRecord(action);
@@ -797,12 +1192,7 @@ function parseMetaActions(actions: unknown): {
     const value = safeNumber(read(actionRecord, ["value", "count"]), 0);
     if (!actionType || !Number.isFinite(value)) continue;
 
-    if (
-      actionType === "lead" ||
-      actionType.includes("fb_pixel_lead") ||
-      actionType.includes("onsite_conversion.lead") ||
-      actionType.includes("lead_grouped")
-    ) {
+    if (isMetaLeadActionType(actionType)) {
       leads += value;
       continue;
     }
@@ -812,16 +1202,35 @@ function parseMetaActions(actions: unknown): {
       continue;
     }
 
-    if (
-      actionType.includes("message_contacts_new") ||
-      actionType.includes("messaging_conversation_started") ||
-      actionType.includes("message")
-    ) {
+    if (isMetaMessageActionType(actionType)) {
       messageContactsNew += value;
+      continue;
+    }
+
+    if (
+      actionType === "like" ||
+      actionType.includes("post_reaction") ||
+      actionType.includes("like")
+    ) {
+      likes += value;
+      continue;
+    }
+
+    if (actionType.includes("comment")) {
+      comments += value;
+      continue;
+    }
+
+    if (
+      actionType === "post" ||
+      actionType.includes("post_share") ||
+      actionType.includes("share")
+    ) {
+      shares += value;
     }
   }
 
-  return { leads, purchases, messageContactsNew };
+  return { leads, purchases, messageContactsNew, likes, comments, shares };
 }
 
 function parseMetaLeadFieldData(fieldData: unknown): {
